@@ -35,7 +35,7 @@ public class MessageController {
 	@Inject
 	private MessageService messageService;
 	
-	public void sendByEmail(ActionRequest request, ActionResponse response) throws AxelorException {
+	public void sendMessage(ActionRequest request, ActionResponse response) throws AxelorException {
 
 		Message message = request.getContext().asType(Message.class);
 
