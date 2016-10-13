@@ -17,10 +17,13 @@
  */
 package com.axelor.meta.web;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.axelor.app.AppSettings;
+import com.axelor.exception.AxelorException;
 import com.axelor.i18n.I18n;
 import com.axelor.meta.db.MetaModel;
 import com.axelor.meta.db.repo.MetaModelRepository;
@@ -39,12 +42,12 @@ public class MetaModelController {
 	@Inject
 	MetaModelRepository metaModelRepo;
 
-	public void openForm(ActionRequest request, ActionResponse response) {
+	public void openForm(ActionRequest request, ActionResponse response) throws AxelorException {
 
 		MetaModel model = request.getContext().asType(MetaModel.class);
 
 		ViewBuilder viewBuilder = viewLoaderService
-				.getDefaultForm(metaModelRepo.find(model.getId()), null, true);
+				.getDefaultForm(model.getMetaModule().getName(), metaModelRepo.find(model.getId()), null, true);
 
 		response.setView(ActionView.define(model.getName())
 				.model("com.axelor.studio.db.ViewBuilder")
@@ -57,11 +60,11 @@ public class MetaModelController {
 
 	}
 
-	public void openGrid(ActionRequest request, ActionResponse response) {
+	public void openGrid(ActionRequest request, ActionResponse response) throws AxelorException {
 
 		MetaModel model = request.getContext().asType(MetaModel.class);
 
-		ViewBuilder viewBuilder = viewLoaderService.getDefaultGrid(
+		ViewBuilder viewBuilder = viewLoaderService.getDefaultGrid(model.getMetaModule().getName(),
 				metaModelRepo.find(model.getId()), false);
 
 		response.setView(ActionView.define(model.getName())
@@ -87,6 +90,43 @@ public class MetaModelController {
 		mapView.put("viewType", "html");
 		
 		response.setView(mapView);
+	}
+	
+	public void setDefault(ActionRequest request, ActionResponse response) {
+		
+		List<Map<String, Object>>  fields = new ArrayList<Map<String,Object>>();
+		
+		List<String[]> defaultFields = new ArrayList<String[]>();
+		defaultFields.add( new String[] { "id", "Id", "Long" , null});
+		defaultFields.add( new String[] { "createdOn", "Created on", "LocalDateTime" , null});
+		defaultFields.add( new String[] { "updatedOn", "Updated on", "LocalDateTime" , null});
+		defaultFields.add( new String[] { "createdBy", "Created By", "User" , "ManyToOne"});
+		defaultFields.add( new String[] { "updatedBy", "Updated By", "User" , "ManyToOne"});
+		defaultFields.add( new String[] { "wkfStatus", "Status", "Integer" , null});
+		
+		for (String[] val : defaultFields) {
+			
+			Map<String, Object> values = new HashMap<String, Object>();
+			values.put("name", val[0]);
+			values.put("label", val[1]);
+			values.put("typeName", val[2]);
+			values.put("relationship", val[3]);
+			
+			if (val[0].equals("wkfStatus")) {
+				values.put("readonly", true);
+				values.put("customised", true);
+				values.put("sequence", 1);
+				values.put("fieldType", "integer");
+			}
+			
+			fields.add(values);
+		}
+		
+		response.setValue("packageName", "com.axelor.apps.custom.db");
+		response.setValue("metaFields", fields);
+		response.setValue("customised", true);
+		response.setValue("edited", true);
+		
 	}
 
 }

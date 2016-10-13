@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import com.axelor.auth.db.repo.RoleRepository;
 import com.axelor.common.Inflector;
+import com.axelor.exception.AxelorException;
 import com.axelor.meta.db.MetaAction;
 import com.axelor.meta.db.MetaField;
 import com.axelor.meta.db.MetaModel;
@@ -44,7 +45,6 @@ import com.axelor.studio.db.Wkf;
 import com.axelor.studio.db.repo.ViewBuilderRepository;
 import com.axelor.studio.db.repo.ViewItemRepository;
 import com.axelor.studio.db.repo.WkfRepository;
-import com.axelor.studio.service.ConfigurationService;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
@@ -61,15 +61,9 @@ public class WkfService {
 
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	protected static final String WKF_STATUS = "wkfStatus";
-
 	protected Wkf workflow = null;
 
-	protected MetaField statusField = null;
-
 	protected String dasherizeModel = null;
-
-	protected String modelName = null;
 
 	protected String moduleName;
 
@@ -107,9 +101,6 @@ public class WkfService {
 	@Inject
 	private WkfRepository wkfRepo;
 
-	@Inject
-	private ConfigurationService configService;
-
 	/**
 	 * Method to process workflow. It call node and transition service for nodes
 	 * and transitions linked with workflow.
@@ -118,20 +109,17 @@ public class WkfService {
 	 *            Worklfow to process.
 	 * @return Exception string if any issue in processing else null.
 	 */
-	@Transactional
+	@Transactional(rollbackOn = {AxelorException.class, Exception.class})
 	public String process(Wkf wkf) {
 
 		try {
-			this.workflow = wkf;
+			workflow = wkf;
 			inflector = Inflector.getInstance();
-			MetaModel metaModel = workflow.getMetaModel();
-			modelName = metaModel.getFullName();
-			moduleName = configService.getModuleName();
-			dasherizeModel = inflector.dasherize(metaModel.getName());
-
+			moduleName = wkf.getMetaModule().getName();
+			dasherizeModel = inflector.dasherize(workflow.getMetaModel().getName());
+			viewBuilder = wkf.getViewBuilder();
 			ActionGroup actionGroup = nodeService.process();
 
-			viewBuilder = wkf.getViewBuilder();
 			viewBuilder.setEdited(true);
 			addWkfStatusView(viewBuilder, workflow.getDisplayTypeSelect());
 
@@ -151,6 +139,19 @@ public class WkfService {
 
 		return null;
 	}
+	
+	public String getSelectName() {
+		
+		if (workflow != null && viewBuilder != null) {
+			MetaField wkfField = workflow.getWkfField();
+			String selectName = "wkf." + inflector.dasherize(viewBuilder.getName()).replace("_", ".");
+			selectName += "." + inflector.dasherize(wkfField.getName()).replace("_", ".") + ".select";
+			
+			return selectName;
+		}
+		
+		return null;
+	}
 
 	/**
 	 * Method add 'wkfStatus' field in ViewBuilder linked with Workflow.
@@ -164,13 +165,13 @@ public class WkfService {
 
 		ViewPanel viewPanel = viewBuilder.getViewPanelList().get(0);
 
-		String selectName = dasherizeModel.replace("_", ".")
-				+ ".wkf.status.select";
-
+		String selectName = getSelectName();
+		
+		MetaField statusField = workflow.getWkfField();
 		List<ViewItem> viewItemList = viewPanel.getViewItemList();
 		if (viewItemList != null) {
 			for (ViewItem item : viewItemList) {
-				if (item.getName().equals(WKF_STATUS)) {
+				if (item.getMetaField() != null && item.getMetaField().equals(statusField)) {
 					if (navSelect > 0) {
 						item.setWidget("NavSelect");
 					} else {
@@ -184,12 +185,12 @@ public class WkfService {
 			}
 		}
 
-		ViewItem viewField = new ViewItem(WKF_STATUS);
+		ViewItem viewField = new ViewItem(statusField.getName());
 		viewField.setTypeSelect(0);
 		viewField.setFieldType("string");
 		viewField.setMetaField(statusField);
 		viewField.setColSpan(12);
-		viewField.setSequence(1);
+		viewField.setSequence(0);
 		viewField.setReadonly(true);
 		viewField.setMetaSelect(metaSelectRepo.findByName(selectName));
 		viewField.setDefaultValue("'" + statusField.getDefaultString() + "'");
@@ -324,14 +325,15 @@ public class WkfService {
 	}
 
 	/**
-	 * Remove wkfStatus field from ViewBuilder and delete MetaField tool.
+	 * Remove wkfStatus field from ViewBuilder
 	 * 
 	 * @param viewBuilder
 	 *            ViewBuilder having 'wkfStatus' field.
 	 */
 	@Transactional
 	public void removeWkfStatus(ViewBuilder viewBuilder) {
-
+		
+		final String WKF_STATUS = "wkfStatus";
 		MetaField metaField = metaFieldRepo
 				.all()
 				.filter("self.name = '" + WKF_STATUS
@@ -473,7 +475,7 @@ public class WkfService {
 
 		if (action == null) {
 			action = new MetaAction(actionName);
-			action.setModel(modelName);
+			action.setModel(workflow.getMetaModel().getFullName());
 			action.setModule(moduleName);
 			action.setType(actionType);
 		}

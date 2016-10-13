@@ -32,6 +32,7 @@ import javax.xml.bind.JAXBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.axelor.exception.AxelorException;
 import com.axelor.meta.db.MetaAction;
 import com.axelor.meta.db.MetaView;
 import com.axelor.meta.db.repo.MetaActionRepository;
@@ -106,48 +107,35 @@ public class ViewBuilderService {
 
 	@Inject
 	private ReportBuilderService reportBuilderService;
-
+	
 	@Inject
 	private ConfigurationService configService;
-	
+
 	private boolean autoCreate = false;
 	
-	public String build(File viewDir, boolean updateMetaViews, 
-			boolean autoCreate, boolean updateAll) {
+	public String build(String module, boolean updateMeta, 
+			boolean autoCreate, boolean updateAll) throws AxelorException {
 		
-		log.debug("Update all views: {}, update metaViews: {}", updateAll, updateMetaViews);
 		this.autoCreate = autoCreate;
+		this.updateMeta = updateMeta;
+		modelMap = new HashMap<String, List<ViewBuilder>>(); 
 		
-		if (!updateMetaViews && viewDir == null) {
-			return "View directory not found please check the configuration";
+		if (!updateMeta) {
+			this.viewDir = configService.getViewDir(module, true);
 		}
 
-		this.viewDir = viewDir;
-
-		updateMeta = updateMetaViews;
-
-		removalService.remove(viewDir);
-
 		try {
-
+			removalService.remove(module, viewDir);
 			reportBuilderService.processReports();
-			String error = actionBuilderService.build(viewDir, updateMeta);
+			
+			String error = actionBuilderService.build(module, viewDir, updateMeta);
 			if (error != null) {
 				return error;
 			}
-			// eventRecorderService.record();
-			List<ViewBuilder> viewBuilders;
-			if (updateAll) {
-				viewBuilders = viewBuilderRepo.all().fetch();
-			}
-			else {
-				String query = "self.edited = true";
-				if (!updateMetaViews) {
-					query += " OR self.recorded = false";
-				}
-				viewBuilders = viewBuilderRepo.all()
-						.filter(query).fetch();
-			}
+			
+			menuBuilderService.build(module, viewDir, updateMeta);
+			
+			List<ViewBuilder> viewBuilders = getViewBuilders(module, updateAll);
 
 			splitByModel(viewBuilders.iterator());
 
@@ -157,15 +145,30 @@ public class ViewBuilderService {
 
 			rightMgmtService.updateRights();
 
-			menuBuilderService.build(viewDir, updateMeta);
-
-			updateEdited(viewBuilders, updateMetaViews);
+			updateEdited(viewBuilders, updateMeta);
 
 			return null;
 		} catch (IOException | JAXBException e) {
 			e.printStackTrace();
 			return e.getMessage();
 		}
+	}
+	
+	private List<ViewBuilder> getViewBuilders(String module, boolean updateAll) {
+		
+		if (updateAll) {
+			return viewBuilderRepo.all().filter("self.metaModule.name = ?1", module).fetch();
+		}
+		else {
+			String query = "self.edited = true";
+			if (!updateMeta) {
+				query += " OR self.recorded = false";
+			}
+			query = "self.metaModule.name = ?1 AND (" + query + ")";
+			return viewBuilderRepo.all()
+					.filter(query, module).fetch();
+		}
+		
 	}
 
 	/**
@@ -198,17 +201,17 @@ public class ViewBuilderService {
 	 *            Action iterator.
 	 */
 	@Transactional
-	public void generateMetaAction(List<Action> actions) {
+	public void generateMetaAction(String module, List<Action> actions) {
 
 		for (Action action : actions) {
 			String name = action.getName();
 
 			MetaAction metaAction = metaActionRepo.all()
-					.filter("self.name = ?1", name).fetchOne();
+					.filter("self.name = ?1 and self.module = ?2", name, module).fetchOne();
 
 			if (metaAction == null) {
 				metaAction = new MetaAction();
-				metaAction.setModule(configService.getModuleName());
+				metaAction.setModule(module);
 				metaAction.setName(name);
 				metaAction.setModel(action.getModel());
 				Class<?> klass = action.getClass();
@@ -216,6 +219,7 @@ public class ViewBuilderService {
 						.replaceAll("([a-z\\d])([A-Z]+)", "$1-$2")
 						.toLowerCase();
 				metaAction.setType(type);
+				metaAction.setXmlId(action.getXmlId());
 			}
 
 			metaAction.setXml(XMLViews.toXml(action, true));
@@ -233,7 +237,7 @@ public class ViewBuilderService {
 	 *            ViewBuilder iterator
 	 */
 	@Transactional
-	public MetaView generateMetaView(AbstractView view) {
+	public MetaView generateMetaView(String module, AbstractView view) {
 
 		String name = view.getName();
 		String xmlId = view.getXmlId();
@@ -268,7 +272,7 @@ public class ViewBuilderService {
 			}
 			metaView = new MetaView();
 			metaView.setName(name);
-			metaView.setModule(configService.getModuleName());
+			metaView.setModule(module);
 			metaView.setXmlId(xmlId);
 			metaView.setModel(model);
 			metaView.setPriority(priority);
@@ -342,32 +346,33 @@ public class ViewBuilderService {
 			List<Action> actions = new ArrayList<Action>();
 
 			switch (viewBuilder.getViewType()) {
-			case "form":
-				view = formBuilderService.getView(viewBuilder, autoCreate);
-				actions.addAll(formBuilderService.getActionRecords());
-				break;
-			case "grid":
-				view = gridBuilderService.getView(viewBuilder);
-				break;
-			case "chart":
-				view = chartBuilderService.getView(viewBuilder);
-				ActionRecord actionRecord = chartBuilderService
-						.getOnNewAction();
-				if (actionRecord != null) {
-					actions.add(actionRecord);
-				}
-				break;
-			case "dashboard":
-				view = dashboardBuilderService.getView(viewBuilder);
-				actions.addAll(dashboardBuilderService.getActions());
-				break;
+				case "form":
+					view = formBuilderService.getView(viewBuilder, autoCreate);
+					actions.addAll(formBuilderService.getActionRecords());
+					break;
+				case "grid":
+					view = gridBuilderService.getView(viewBuilder);
+					break;
+				case "chart":
+					view = chartBuilderService.getView(viewBuilder);
+					ActionRecord actionRecord = chartBuilderService
+							.getOnNewAction();
+					if (actionRecord != null) {
+						actions.add(actionRecord);
+					}
+					break;
+				case "dashboard":
+					view = dashboardBuilderService.getView(viewBuilder);
+					actions.addAll(dashboardBuilderService.getActions());
+					break;
 			}
 
 			if (view != null) {
-				MetaView metaView = generateMetaView(view);
+				String module = viewBuilder.getMetaModule().getName();
+				MetaView metaView = generateMetaView(module, view);
 				viewBuilder.setMetaViewGenerated(metaView);
 				metaViewRepo.save(metaView);
-				generateMetaAction(actions);
+				generateMetaAction(module, actions);
 			}
 
 			if (!updateMeta && (view != null || !actions.isEmpty())) {
@@ -406,27 +411,21 @@ public class ViewBuilderService {
 		if (objectViews == null) {
 			objectViews = new ObjectViews();
 		}
-
-		StringWriter xmlWriter = new StringWriter();
-
+		
 		if (view != null) {
 			List<AbstractView> views = filterOldViews(view,
 					objectViews.getViews());
-			for (AbstractView viewXml : views) {
-				xmlWriter.write(XMLViews.toXml(viewXml, true));
-				xmlWriter.write("\n");
-			}
+			objectViews.setViews(views);
 		}
 
 		if (actions != null && !actions.isEmpty()) {
 			actions = filterOldActions(actions, objectViews.getActions());
-			for (Action action : actions) {
-				xmlWriter.write(XMLViews.toXml(action, true));
-				xmlWriter.write("\n");
-			}
+			objectViews.setActions(actions);
 		}
-
-		writeFile(viewFile, xmlWriter);
+		
+		if (view != null || (actions != null && !actions.isEmpty())) {
+			XMLViews.marshal(objectViews, new FileWriter(viewFile));
+		}
 
 	}
 

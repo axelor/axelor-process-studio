@@ -18,33 +18,29 @@
 package com.axelor.studio.service.data.exporter;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.axelor.app.AppSettings;
 import com.axelor.meta.MetaFiles;
 import com.axelor.meta.db.MetaFile;
-import com.axelor.studio.service.data.DataCommonService;
+import com.axelor.studio.service.data.CommonService;
+import com.axelor.studio.service.data.importer.DataReader;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 
-public class DataAsciidocService extends DataCommonService {
+public class ExportAsciidoc {
 	
-	private static final Logger log = LoggerFactory.getLogger(DataAsciidocService.class);
+	private static final Logger log = LoggerFactory.getLogger(ExportAsciidoc.class);
 	
 	private static final List<String> COMMENT_TYPES = Arrays.asList(
 			new String[]{"tip", "general", "warn"});
@@ -62,14 +58,26 @@ public class DataAsciidocService extends DataCommonService {
 
 	private boolean setHorizontal = false;
 	
+	private String lang = null;
+	
 	private Map<String, Integer> countMap = new HashMap<String, Integer>();
 	
 	@Inject
 	private MetaFiles metaFiles;
 	
-	public MetaFile export(MetaFile dataFile, String lang) throws IOException {
+	public MetaFile export(MetaFile input, DataReader reader, String lang, String name) throws IOException {
 		
-		String docImgPath = AppSettings.get().get("doc.images.path");
+		if (input == null) {
+			return null;
+		}
+		
+		if (reader == null) {
+			return null;
+		}
+		
+		reader.initialize(input);
+		
+		String docImgPath = AppSettings.get().get("studio.doc.dir");
 		
 		setHorizontal = false;
 		
@@ -78,35 +86,18 @@ public class DataAsciidocService extends DataCommonService {
 		}
 		
 		log.debug("Doc image path: {}", docImgPath);
-		if (dataFile == null) {
-			return null;
-		}
 		
-		File data = MetaFiles.getPath(dataFile).toFile();
-		if (data == null || !data.exists()) {
-			return null;
-		}
+		this.lang = lang;
 		
-		File exportFile = export(data, null, lang);
+		File exportFile = exportAscci(reader, lang, name);
 		
 		return metaFiles.upload(exportFile);
 	}
 	
-	public File export(File dataFile, File asciiDoc, String lang) {
-		
-		if (dataFile == null) {
-			return null;
-		}
+	private File exportAscci(DataReader reader,  String lang, String name) {
 		
 		try {
-			FileInputStream inStream = new FileInputStream(dataFile);
-			
-			XSSFWorkbook workbook = new XSSFWorkbook(inStream);
-			
-			if (asciiDoc == null) {
-				String fileName = dataFile.getName().replace(".xlsx", "");
-				asciiDoc = File.createTempFile(fileName, ".txt");
-			}
+			File asciiDoc = File.createTempFile(name, ".txt");
 			
 			FileWriter fw = new FileWriter(asciiDoc);
 			
@@ -119,7 +110,7 @@ public class DataAsciidocService extends DataCommonService {
 				fw.write("= Documentation\n:toc:\n:toclevels: 4");
 			}
 			
-			processSheet(workbook.iterator(), fw);
+			processReader(reader, fw);
 			
 			fw.close();
 			
@@ -132,54 +123,48 @@ public class DataAsciidocService extends DataCommonService {
 		return null;
 	}
 
-	private void processSheet(Iterator<XSSFSheet> iterator, FileWriter fw)
+	private void processReader(DataReader reader, FileWriter fw)
 			throws IOException {
-		
-		if (!iterator.hasNext()) {
-			return;
-		}
-		
-		XSSFSheet sheet = iterator.next();
 		
 		hasMenu = false;
 		
-		processRow(sheet.rowIterator(), fw);
+		String[] keys = reader.getKeys();
 		
-		processSheet(iterator, fw);
+		if (keys != null) {
+			
+			for (String key : reader.getKeys()) {
+				
+				int totalLines = reader.getTotalLines(key);
+				
+				for (int ind = 0; ind < totalLines; ind++) {
+					String[] row = reader.read(key, totalLines);
+					if (row == null) {
+						continue;
+					}
+					
+					String type = row[CommonService.TYPE];
+					if (type != null) {
+						String menu = row[CommonService.MENU];
+						String view = row[CommonService.VIEW];
+						if (!Strings.isNullOrEmpty(menu) 
+								&& type.equals("general")){
+							processMenu(menu, view);
+							hasMenu = true;
+						}
+						else {
+							menu = null;
+						}
+
+						if(hasMenu){ 
+							processView(row, type, fw);
+						}
+					}
+				}
+			}
+		
+		}
 	}
 
-	private void processRow(Iterator<Row> rowIterator, FileWriter fw)
-			throws IOException {
-		
-		if (!rowIterator.hasNext()) {
-			return;
-		}
-		
-		Row row = rowIterator.next();
-		
-		String type = getValue(row, TYPE);
-		
-		if (type != null) {
-			String menu = getValue(row, MENU);
-			String view = getValue(row, 2);
-			if (!Strings.isNullOrEmpty(menu) 
-					&& type.equals("general")){
-				processMenu(menu, view);
-				hasMenu = true;
-			}
-			else {
-				menu = null;
-			}
-
-			if(hasMenu){ 
-				processView(row, type, fw);
-			}
-		}
-		
-		processRow(rowIterator, fw);
-		
-	}
-	
 	private void processMenu(String menu, String view) throws IOException{
 		
 		if (menu.contains("-form(")) {
@@ -224,23 +209,30 @@ public class DataAsciidocService extends DataCommonService {
 		
 	}
 	
-	private void processView(Row row, String type, FileWriter fw) 
+	private void processView(String[] values, String type, FileWriter fw) 
 			throws IOException{
 		
-		String modelVal = getValue(row, 1);
-		String viewVal = getValue(row, 2);
+		String modelVal = values[CommonService.MODEL];
+		String viewVal = values[CommonService.VIEW];
 		
 		if (Strings.isNullOrEmpty(modelVal) 
 				&& Strings.isNullOrEmpty(viewVal)) {
 			return;
 		}
 		
-		String doc = getValue(row, HELP);
+		String doc = values[CommonService.HELP];
+		if (Strings.isNullOrEmpty(doc)) {
+			doc =  values[CommonService.HELP_FR];
+		}
 		if (Strings.isNullOrEmpty(doc)) {
 			return;
 		}
 		
-		String title = getValue(row, TITLE);
+		String title =  values[CommonService.TITLE];
+		if (lang != null && lang.equals("fr")) {
+			title = values[CommonService.TITLE_FR];
+		}
+		
 		if (Strings.isNullOrEmpty(title)) { 
 			title = type;
 		}
@@ -260,7 +252,7 @@ public class DataAsciidocService extends DataCommonService {
 			type = type.substring(0, type.indexOf("("));
 		}
 		
-		if (fieldTypes.containsKey(type) || viewElements.containsKey(type) || header != null) {
+		if (CommonService.FIELD_TYPES.containsKey(type) || CommonService.VIEW_ELEMENTS.containsKey(type) || header != null) {
 			if (header != null) {
 				fw.write(header);
 				header = null;

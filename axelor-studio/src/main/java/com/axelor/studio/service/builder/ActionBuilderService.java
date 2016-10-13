@@ -23,14 +23,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.bind.JAXBException;
 
-import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +45,7 @@ import com.axelor.i18n.I18n;
 import com.axelor.inject.Beans;
 import com.axelor.meta.db.MetaField;
 import com.axelor.meta.db.MetaModel;
+import com.axelor.meta.db.MetaView;
 import com.axelor.meta.db.repo.MetaFieldRepository;
 import com.axelor.meta.schema.actions.Action;
 import com.axelor.meta.schema.actions.ActionMethod;
@@ -92,22 +95,16 @@ public class ActionBuilderService {
 	
 	private String errors;
 
-	public String build(File viewDir, boolean updateMeta) throws IOException,
+	public String build(String module, File viewDir, boolean updateMeta) throws IOException,
 			JAXBException {
 		
 		errors = null;
-		String query = "self.edited = true";
-		if (!updateMeta) {
-			query += " OR self.recorded = false";
-		}
-		List<ActionBuilder> actionBuilders = actionBuilderRepo.all()
-				.filter(query).fetch();
-
-		log.debug("Total actions to process: {}", actionBuilders.size());
-
+		
+		List<ActionBuilder> actionBuilders = getActionBuilders(module, updateMeta);
 		if (actionBuilders.isEmpty()) {
 			return errors;
 		}
+		
 		scriptBindings = new ScriptBindings(new HashMap<String, Object>());
 		modelActionMap = new HashMap<String, List<Action>>();
 
@@ -117,7 +114,7 @@ public class ActionBuilderService {
 			List<Action> actions = modelActionMap.get(model);
 			log.debug("Model : {}", model);
 			log.debug("Actions: {}", actions.size());
-			viewBuilderService.generateMetaAction(actions);
+			viewBuilderService.generateMetaAction(module, actions);
 			if (!updateMeta) {
 				String[] models = model.split("\\.");
 				viewBuilderService.writeView(viewDir,
@@ -128,6 +125,21 @@ public class ActionBuilderService {
 		updateEdited(actionBuilders, updateMeta);
 		
 		return errors;
+	}
+	
+	private List<ActionBuilder> getActionBuilders(String module, boolean updateMeta) {
+		
+		String query = "self.edited = true";
+		if (!updateMeta) {
+			query += " OR self.recorded = false";
+		}
+		
+		query = "self.metaModule.name = ?1 AND (" + query + ")";
+		
+		return actionBuilderRepo.all()
+				.filter(query, module).fetch();
+
+		
 	}
 
 	@Transactional
@@ -155,38 +167,46 @@ public class ActionBuilderService {
 		MetaModel model = getModel(actionBuilder);
 		log.debug("Action model: {}", model);
 		Integer actionType = actionBuilder.getTypeSelect();
-
+		
 		Action action = null;
 
 		switch (actionType) {
-		case 0:
-			action = createActionRecord(model, actionBuilder, true);
-			break;
-		case 1:
-			action = createActionRecord(model, actionBuilder, false);
-			break;
-		case 2:
-			action = createActionView(model, actionBuilder);
-			break;
-		case 3:
-			action = createActionReport(model, actionBuilder);
-			break;
-		case 4:
-			action = createActionEmail(model, actionBuilder);
-			break;
-		case 5:
-			action = createActionValidation(actionBuilder);
-			break;
-		default:
-			processActionBuilder(actionIter);
-		}
-
-		String modelName = "Dashboard";
-		if (model != null) {
-			modelName = model.getFullName();
+			case 0:
+				action = createActionRecord(model, actionBuilder, true);
+				break;
+			case 1:
+				action = createActionRecord(model, actionBuilder, false);
+				break;
+			case 2:
+				action = createActionView(actionBuilder);
+				break;
+			case 3:
+				action = createActionReport(model, actionBuilder);
+				break;
+			case 4:
+				action = createActionEmail(model, actionBuilder);
+				break;
+			case 5:
+				action = createActionValidation(actionBuilder);
+				break;
 		}
 		
-		updateModelActionMap(modelName, action);
+		if (action != null) {
+			
+			String modelName = "Dashboard";
+			if (model != null) {
+				modelName = model.getFullName();
+			}
+			
+			if (actionBuilder.getMenuAction()) {
+				modelName = "Menu";
+			}
+			
+			action.setXmlId(actionBuilder.getMetaModule().getName() + "-" + action.getName());
+			updateModelActionMap(modelName, action);
+		}
+		
+		
 		processActionBuilder(actionIter);
 	}
 
@@ -441,28 +461,140 @@ public class ActionBuilderService {
 		updateModelActionMap(model, actionRecord);
 	}
 
-	private Action createActionView(MetaModel model, ActionBuilder actionBuilder) {
-
-		ViewBuilder viewBuilder = actionBuilder.getViewBuilder();
-		String viewName = viewBuilder.getName();
-		String viewType = viewBuilder.getViewType();
-		String title = viewBuilder.getTitle();
-
-		ActionViewBuilder builder = ActionView.define(title);
-		builder.add(viewType, viewName);
+	private Action createActionView(ActionBuilder actionBuilder) {
+		
+		ActionViewBuilder builder = ActionView.define(actionBuilder.getTitle());
 		builder.name(actionBuilder.getName());
-		builder.param("popup", actionBuilder.getPopup().toString());
-
-		if (!viewType.equals("dashboard")) {
-			viewType = viewType.equals("form") ? "grid" : "form";
-			builder.add(viewType);
-			if (model != null) {
-				builder.model(model.getFullName());
-			}
-			updateDomainContext(builder, actionBuilder);
+		if (actionBuilder.getPopup()) {
+			builder.param("popup", "true");
 		}
+		builder = addViews(builder, actionBuilder);
 
 		return builder.get();
+	}
+	
+	private ActionViewBuilder addViews(ActionViewBuilder builder, ActionBuilder actionBuilder) {
+		
+		if (actionBuilder.getViewOrder() == null) {
+			return builder;
+		}
+		
+		List<String> viewOrder = new ArrayList<String>();
+		for (String order : actionBuilder.getViewOrder().split(",")) {
+			viewOrder.add(order.trim());
+		}
+		
+		List<ViewBuilder> builders = sortViewBuilders(viewOrder, actionBuilder.getViewBuilderSet());
+		Iterator<ViewBuilder> builderIter = builders.iterator();
+		
+		if (builderIter.hasNext()) {
+			ViewBuilder viewBuilder = builderIter.next();
+			builder.add(viewBuilder.getViewType(), viewBuilder.getName());
+			
+			if (viewBuilder.getViewType() == "dashboard") {
+				return builder;
+			}
+
+			while(builderIter.hasNext()) {
+				viewBuilder = builderIter.next();
+				builder.add(viewBuilder.getViewType(), viewBuilder.getName());
+			}
+			
+		}
+		else {
+			List<MetaView> views = sortViews(viewOrder, actionBuilder.getMetaViewSet());
+			Iterator<MetaView> viewIter = views.iterator();
+			if (viewIter.hasNext()) {
+				MetaView view = viewIter.next();
+				builder.add(view.getType(), view.getName());
+				
+				if (view.getType() == "dashboard") {
+					return builder;
+				}
+				
+				while(viewIter.hasNext()) {
+					view = viewIter.next();
+					builder.add(view.getType(), view.getName());
+				}
+			}
+		}
+		
+		if (actionBuilder.getMetaModel() != null) {
+			builder.model(actionBuilder.getMetaModel().getFullName());
+		}
+		
+		if (actionBuilder.getDomainCondition() != null) {
+			builder.domain(actionBuilder.getDomainCondition());
+			builder = addDomainContext(builder, actionBuilder);
+		}
+		else {
+			builder = processFilters(builder, actionBuilder);
+		}
+		
+		return builder;
+	}
+
+	private List<ViewBuilder> sortViewBuilders(final List<String> viewOrder, Set<ViewBuilder> viewBuilders) {
+		
+		ArrayList<ViewBuilder> builders = new ArrayList<ViewBuilder>();
+		builders.addAll(viewBuilders);
+		Collections.sort(builders, new Comparator<ViewBuilder>() {
+
+			@Override
+			public int compare(ViewBuilder builder1, ViewBuilder builder2) {
+				return compareTypes(viewOrder, builder1.getViewType(), builder2.getViewType());
+			}
+		} );
+		
+		return builders;
+	}
+	
+	private List<MetaView> sortViews(final List<String> viewOrder, Set<MetaView> viewSet) {
+		
+		ArrayList<MetaView> views = new ArrayList<MetaView>();
+		views.addAll(viewSet);
+		Collections.sort(views, new Comparator<MetaView>() {
+
+			@Override
+			public int compare(MetaView view1, MetaView view2) {
+				return compareTypes(viewOrder, view1.getType(), view2.getType());
+			}
+		} );
+		
+		return views;
+	}
+	
+	private int compareTypes(List<String> viewOrder, String type1, String type2) {
+		
+		if (viewOrder.indexOf(type1) == -1 
+				|| viewOrder.indexOf(type2) == -1
+				|| viewOrder.indexOf(type1) > viewOrder.indexOf(type2)) {
+			return 1;
+		}
+		else if (viewOrder.indexOf(type1) < viewOrder.indexOf(type2)) {
+			return -1;
+		}
+		
+		return 1;
+		
+	}
+
+
+	private ActionViewBuilder addDomainContext(ActionViewBuilder builder, ActionBuilder actionBuilder) {
+		
+		builder.domain(actionBuilder.getDomainCondition());
+		String context =  actionBuilder.getContext();
+
+		if (context != null) {
+			for (String ctx : context.split(",")) {
+				String[] ctxs = ctx.split(";");
+				if (ctxs.length == 2) {
+					builder.context(ctxs[0], ctxs[1]);
+				}
+			}
+		}
+		
+		return builder;
 	}
 
 	private String createLoopOnExpression(ActionBuilder actionBuilder,
@@ -563,35 +695,31 @@ public class ActionBuilderService {
 		return method;
 	}
 
-	private void updateDomainContext(ActionViewBuilder builder,
+	private ActionViewBuilder processFilters(ActionViewBuilder builder,
 			ActionBuilder actionBuilder) {
 
 		String domain = null;
 		int counter = 1;
-
 		for (Filter filter : actionBuilder.getFilters()) {
-
-			String value = filter.getValue();
-			String origVal = value;
 			String param = null;
 			filter.setIsParameter(false);
-			if (value != null) {
+			String value = filter.getValue();
+			
+			if (value != null && filter.getFilterOperator() != null 
+					&& !FilterService.NO_PARAMS.contains(filter.getFilterOperator().getValue())) {
 				filter.setIsParameter(true);
 				param = "_param" + counter;
-				if (value.startsWith("$$")) {
-					value = value.substring(2);
-				}
-				filter.setValue(value);
-				builder.context(param, "eval:" + value);
+				builder.context(param, "eval:" + filterService.getTagValue(value, false));
+				counter++;
 			}
 
 			domain = addCondition(domain, filter, param);
 
-			filter.setValue(origVal);
-
 		}
 
 		builder.domain(domain);
+		
+		return builder;
 
 	}
 
@@ -635,7 +763,7 @@ public class ActionBuilderService {
 				+ ", '" + model.getName() + "'" + ", '" + template.getName()
 				+ "')");
 		call.setCondition("id != null");
-		call.setController("com.axelor.studio.service.ActionBuilderService");
+		call.setController("com.axelor.studio.service.builder.ActionBuilderService");
 		action.setCall(call);
 
 		return action;

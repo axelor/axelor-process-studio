@@ -17,31 +17,34 @@
  */
 package com.axelor.studio.service;
 
-import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.validation.ValidationException;
 
-import org.apache.xmlbeans.impl.common.JarHelper;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.axelor.app.AppSettings;
 import com.axelor.common.FileUtils;
-import com.axelor.db.JPA;
 import com.axelor.exception.AxelorException;
 import com.axelor.i18n.I18n;
+import com.axelor.meta.db.MetaModule;
 import com.axelor.studio.db.ModuleRecorder;
-import com.axelor.studio.db.StudioConfiguration;
 import com.axelor.studio.db.repo.ModuleRecorderRepository;
-import com.axelor.studio.db.repo.StudioConfigurationRepository;
 import com.axelor.studio.service.builder.ModelBuilderService;
+import com.axelor.studio.service.builder.SelectionBuilderService;
+import com.axelor.studio.service.builder.TranslationBuilderService;
 import com.axelor.studio.service.builder.ViewBuilderService;
 import com.axelor.studio.service.wkf.WkfService;
+import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 
@@ -55,9 +58,6 @@ public class ModuleRecorderService {
 
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	@Inject
-	private StudioConfigurationRepository configRepo;
-	
 	@Inject
 	private ModuleRecorderRepository moduleRecorderRepo;
 	
@@ -73,39 +73,47 @@ public class ModuleRecorderService {
 	@Inject
 	private ViewBuilderService viewBuilderService;
 	
-	public String update(ModuleRecorder recorder) throws AxelorException{
+	@Inject
+	private SelectionBuilderService selectionBuilderService;
+	
+	@Inject
+	private TranslationBuilderService translationBuilderService;
+	
+	@Inject
+	private CommandService commandService;
+	
+	public String update(ModuleRecorder recorder) throws AxelorException {
 		
 		String wkfProcess = wkfService.processWkfs();
 		if (wkfProcess != null) {
 			return I18n.get(String.format("Error in workflow processing: \n%s", wkfProcess));
 		}
 		
-		configService.config();
-		
 		if (recorder.getUpdateServer()) {
-			File domainDir = configService.getDomainDir();
 
-			if (!modelBuilderService.build(domainDir)) {
-				return I18n.get("Error in model recording. Please check the log");
-			}
+			modelBuilderService.build();
+			
+			selectionBuilderService.build();
+			
+			translationBuilderService.build();
 			
 			if (!buildApp(recorder)) {
 				return I18n.get("Error in build. Please check the log");
 			}
 		}
 		
-		String viewUpdate =  viewBuilderService.build(configService.getViewDir(), 
-				!recorder.getUpdateServer(), recorder.getAutoCreate(), recorder.getAllViewUpdate());
-		if (viewUpdate != null) {
-			updateModuleRecorder(recorder, viewUpdate, true);
+		String viewLog = buildView(recorder);
+		
+		if (viewLog != null) {
+			updateModuleRecorder(recorder, viewLog, true);
 			return I18n.get("Error in view update. Please check the log");
 		}
 		
-		updateModuleRecorder(recorder, null, false);
-		
 		if (recorder.getUpdateServer()) {
-			return updateApp(false);
+			return restartServer(false);
 		}
+		
+		updateModuleRecorder(recorder, null, false);
 		
 		return I18n.get("Views updated successfuly");
 		
@@ -113,19 +121,19 @@ public class ModuleRecorderService {
 	
 	public String reset(ModuleRecorder moduleRecorder) throws IOException, AxelorException {
 		
-		configService.config();
-		
-		File moduleDir = configService.getModuleDir();
-		log.debug("Deleting directory: {}",moduleDir.getPath());
-		
-		if (moduleDir.exists()) {
-			FileUtils.deleteDirectory(moduleDir);
+		for (MetaModule module : configService.getCustomizedModules()) {
+			File moduleDir = configService.getModuleDir(module.getName(), false);
+			log.debug("Deleting directory: {}",moduleDir.getPath());
+			if (moduleDir.exists()) {
+				FileUtils.deleteDirectory(moduleDir);
+			}
 		}
+		
 		if (!buildApp(moduleRecorder)) {
 			return I18n.get("Error in build. Please check the log");
 		}
 		
-		return updateApp(true);
+		return restartServer(true);
 	}
 	
 	/**
@@ -136,133 +144,63 @@ public class ModuleRecorderService {
 	 *            and AxelorHome path..
 	 * @return String array with first element as '0' if success and '-1' for
 	 *         error. Second element is log from build process.
+	 * @throws AxelorException 
 	 */
-	public boolean buildApp(ModuleRecorder moduleRecorder) {
+	public boolean buildApp(ModuleRecorder moduleRecorder) throws AxelorException {
 
-		String logText = "";
+		String logText = null;
 		boolean build = true;
-		try {
-			AppSettings settings = AppSettings.get();
-			String buildDir = checkParams("Build directory",
-					settings.get("build.dir"), true);
-			String axelorHome = checkParams("Axelor home",
-					settings.get("axelor.home"), true);
-			File buildDirFile = new File(buildDir);
-
-			StudioConfiguration config = configRepo.all().fetchOne();
-			ProcessBuilder processBuilder = null;
-			if (config != null) {
-				String buildCmd = config.getBuildCmd();
-				if (buildCmd != null) {
-					processBuilder = new ProcessBuilder(buildCmd.split(" "));
-				}
-			}
-			if (processBuilder == null) {
-				processBuilder = new ProcessBuilder("./gradlew", "clean", "-x",
-						"test", "build");
-			}
-			processBuilder.directory(buildDirFile);
-			processBuilder.environment().put("AXELOR_HOME", axelorHome);
-
-			Process process = processBuilder.start();
-
-			BufferedReader reader = new BufferedReader(new InputStreamReader(
-					process.getInputStream()));
-
-			String line = "";
-			while ((line = reader.readLine()) != null) {
-				logText +=  line + "\n";
-			}
-
-			process.waitFor();
-
-			Integer exitStatus = process.exitValue();
-			
-//			log.debug("Exit status: {}, Log text: {}", exitStatus, logText);
-
-			if (exitStatus != 0) {
-				build =  false;
-			}
-			
-		} catch (ValidationException | IOException | InterruptedException e) {
-			StringWriter sw = new StringWriter();
-			PrintWriter pw = new PrintWriter(sw);
-			e.printStackTrace(pw);
-			logText = sw.toString();
-			build =  false;
-		}
 		
+		File sourceDir = getSourceDir();
+		String script = "gradlew";
+		if (SystemUtils.IS_OS_WINDOWS) {
+			script = "gradlew.bat";
+		}
+		String scriptPath = new File(sourceDir, script).getAbsolutePath();
+		log.debug("Script path: {}", scriptPath);
+		
+		Map<String, String> env = createEnvironment();
+		
+		String command = scriptPath + " -x test clean build";
+		StringBuffer result = new StringBuffer();
+		
+		int exitStatus = commandService.execute(sourceDir, env, command, result);
+		log.debug("Exit status: {}", exitStatus);
+		if (exitStatus != 0) {
+			build =  false;
+			logText = result.toString();
+		}
+			
 		updateModuleRecorder(moduleRecorder, logText, build);
 		
 		return build;
 	}
 
-	/**
-	 * Method call update application on given tomcat webapp path
-	 * 
-	 * @param moduleRecorder
-	 *            Configuration record.
-	 * @throws InterruptedException 
-	 */
-	public String updateApp(boolean reset){
-
-		try {
-			AppSettings settings = AppSettings.get();
-			String buildDirPath = checkParams("Build directory",
-					settings.get("build.dir"), true);
-			String webappPath = checkParams("Tomcat webapp server path",
-					settings.get("tomcat.webapp"), true);
-
-			File warDir = new File(buildDirPath + File.separator + "build",
-					"libs");
-			log.debug("War directory path: {}", warDir.getAbsolutePath());
-			if (!warDir.exists()) {
-				return I18n
-						.get("Error in application build. No build directory found");
-			}
-			File webappDir = new File(webappPath);
-			File warFile = null;
-			for (File file : warDir.listFiles()) {
-				if (file.getName().endsWith(".war")) {
-					warFile = file;
-					break;
-				}
-			}
-
-			if (warFile == null) {
-				return I18n
-						.get("Error in application build. No war file generated.");
-			} else {
-				String appName = warFile.getName();
-				appName = appName.substring(0, appName.length() - 4);
-				File appDir = new File(webappDir, appName);
-				if (appDir.exists()) {
-					FileUtils.deleteDirectory(appDir);
-				}
-				appDir.mkdir();
-				log.debug("Webapp app directory: {}", appDir.getAbsolutePath());
-				log.debug("War file: {}", warFile.getAbsolutePath());
-				JarHelper jarHelper = new JarHelper();
-				jarHelper.unjarDir(warFile, appDir);
-			}
-			
-		} catch (ValidationException | IOException e) {
-			e.printStackTrace();
-			String msg = I18n.get("Error in update, please check the log.");
-			if (reset) {
-				msg = I18n.get("Error in reset, please check the log.");
-			}
-			return msg + e.getMessage();
-		}
+	private File getSourceDir() throws AxelorException {
 		
-		if (reset) {
-			String msg = I18n.get("App reset successfully");
-			clearDatabase();
-			return msg;
-		}
+		AppSettings settings = AppSettings.get();
+		String buildDirPath = checkParams("studio.source.dir",
+				settings.get("studio.source.dir"), true);
+		File buildDir = new File(buildDirPath);
 		
-		return I18n.get("App updated successfully");
+		return buildDir;
 	}
+
+	private Map<String, String> createEnvironment() {
+		
+		Map<String, String> env = new HashMap<String, String>();
+		log.debug("JAVA HOME: {}", System.getProperty("java.home"));
+		env.put("JAVA_HOME", System.getProperty("java.home"));
+		log.debug("JAVA Temp dir {}", System.getProperty("java.io.tmpdir"));
+		env.put("GRADLE_OPTS", "-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"));
+		String axelorHome = getAxelorHome(env);
+		if (axelorHome != null) {
+			env.put("AXELOR_HOME", axelorHome);
+		}
+		
+		return env;
+	}
+
 
 	/**
 	 * Validate parameters to check if its null or not.
@@ -279,17 +217,15 @@ public class ModuleRecorderService {
 	 *             parameter is file and file not exist.
 	 */
 	private String checkParams(String name, String param, boolean isFile)
-			throws ValidationException {
+			throws AxelorException {
 
 		if (param == null) {
-			throw new ValidationException(
-					I18n.get("Required parameter is empty: ") + name);
+			throw new AxelorException(I18n.get("Required parameter is empty: ") + name, 1);
 		}
 
 		if (isFile) {
 			if (!(new File(param)).exists()) {
-				throw new ValidationException(I18n.get("Path not exist: ")
-						+ param);
+				throw new AxelorException(I18n.get("Path not exist: ") + param, 1);
 			}
 		}
 
@@ -297,13 +233,115 @@ public class ModuleRecorderService {
 
 	}
 	
-	@Transactional
-	public void clearDatabase() {
+	private String restartServer(boolean reset) throws AxelorException {
 		
-		JPA.em().createNativeQuery("drop schema public cascade").executeUpdate();
-		JPA.em().createNativeQuery("create schema public").executeUpdate();
+		String tomcatPath = getTomcatPath();
+		File sourceDir = getSourceDir();
+		String warPath = getWarPath(sourceDir);
 		
+		AppSettings settings = AppSettings.get();
+		String webapp = checkParams("studio.webapp.dir",
+				settings.get("studio.webapp.dir"), true);
+		String logFile = checkParams("studio.restart.log",
+				settings.get("studio.restart.log"), true);
+
+		try {
+			String scriptPath = getRestartScriptPath();
+			
+//			String command = scriptPath + " " + tomcatPath + " " +  webapp + " " + warPath;
+//			
+//			if (reset) {
+//				String dbUrl = settings.get("db.default.url");
+//				String database = dbUrl.substring(dbUrl.lastIndexOf("/") + 1);
+//				command += database + " " + settings.get("db.default.user") + " " + settings.get("db.default.password");
+// 			}
+			
+			//commandService.execute(sourceDir, System.getenv(), command, new StringBuffer());
+			ProcessBuilder processBuilder = null;
+			if (reset) {
+				String dbUrl = settings.get("db.default.url");
+				String database = dbUrl.substring(dbUrl.lastIndexOf("/") + 1);
+				processBuilder = new ProcessBuilder(scriptPath, 
+						tomcatPath, 
+						webapp, 
+						warPath,
+						database,
+						settings.get("db.default.user"),
+						settings.get("db.default.password"));
+			}
+			else {
+				processBuilder = new ProcessBuilder(scriptPath, 
+						tomcatPath, 
+						webapp, 
+						warPath );
+			}
+			processBuilder.environment().putAll(System.getenv());
+			processBuilder.redirectOutput(new File(logFile));
+			processBuilder.start();
+		} catch (IOException e) {
+			throw new AxelorException(e, 5);
+		}
+		
+		if (reset) {
+			return I18n.get("App reset sucessfully");
+		}
+		
+		return I18n.get("App updated successfully");
 	}
+
+	private String getTomcatPath() throws AxelorException {
+		
+		String tomcatPath = AppSettings.get().get("studio.catalina.home");
+		File tomcatDir = null;
+		if (tomcatPath != null) {
+			tomcatDir = new File(tomcatPath);
+		}
+		
+		if (tomcatDir == null || !tomcatDir.exists()) {
+			throw new AxelorException(I18n.get("Tomcat server directory not exist"),1);
+		}
+		
+		return tomcatDir.getAbsolutePath();
+	}
+	
+	private String getWarPath(File sourceDir) throws AxelorException{
+		
+		File warDir = FileUtils.getFile(sourceDir, "build",
+				"libs");
+		log.debug("War directory path: {}", warDir.getAbsolutePath());
+		if (!warDir.exists()) {
+			throw new AxelorException(I18n
+					.get("Error in application build. No build directory found"), 1) ;
+		}
+
+		for (File file : warDir.listFiles()) {
+			if (file.getName().endsWith(".war")) {
+				return file.getAbsolutePath();
+			}
+		}
+
+		throw new AxelorException(I18n
+				.get("Error in application build. No build directory found"), 1) ;
+	
+	}
+	
+	
+	private String getRestartScriptPath() throws IOException, FileNotFoundException {
+		
+		String ext = "sh";
+		if (SystemUtils.IS_OS_WINDOWS) {
+			ext = "bat";
+		}
+		InputStream stream = this.getClass().getResourceAsStream("/script/RestartServer." + ext);
+		File script = File.createTempFile("RestartServer", "." + ext);
+		script.setExecutable(true);
+		FileOutputStream out = new FileOutputStream(script);
+		IOUtils.copy(stream, out);
+		out.close();
+		
+		return script.getAbsolutePath();
+	}
+
 	
 	@Transactional
 	public void updateModuleRecorder(ModuleRecorder moduleRecorder, String logText, boolean update) {
@@ -325,4 +363,57 @@ public class ModuleRecorderService {
 		}
 	}
 	
+	private String buildView(ModuleRecorder recorder) throws AxelorException {
+		
+		String viewLog = null;
+		for (MetaModule module : configService.getCustomizedModules()) {
+			viewLog =  viewBuilderService.build(module.getName(), 
+				!recorder.getUpdateServer(), recorder.getAutoCreate(), recorder.getAllViewUpdate());
+			if (viewLog != null) {
+				break;
+			}
+		}
+		
+		return viewLog;
+		
+	}
+	
+	private String getAxelorHome(Map<String, String> env) {
+		
+		String adkPath = AppSettings.get().get("studio.adk.dir");
+		if (Strings.isNullOrEmpty(adkPath)) {
+			return null;
+		}
+		File adkDir = new File(adkPath);
+		if (!adkDir.exists()) {
+			return null;
+		}
+		
+		File axelorHome = FileUtils.getFile(adkDir, "build", "install", "axelor-development-kit");
+		
+		if (!axelorHome.exists()) {
+			String script = "gradlew";
+			if (SystemUtils.IS_OS_WINDOWS) {
+				script = "gradlew.bat";
+			}
+			
+			String scriptPath = new File(adkDir, script).getAbsolutePath();
+			log.debug("ADK build script {}", scriptPath);
+			
+			String command = scriptPath + " clean installDist";
+			StringBuffer result = new StringBuffer();
+			int exitStatus = commandService.execute(adkDir, env, command, result);
+			if (exitStatus != 0) {
+				return null;
+			}
+			
+		}
+		
+		if (axelorHome.exists()) {
+			return axelorHome.getAbsolutePath();
+		}
+		
+		return null;
+	
+	}
 }

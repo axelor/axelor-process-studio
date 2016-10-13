@@ -18,58 +18,47 @@
 package com.axelor.studio.service.data;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-
 import com.axelor.common.Inflector;
-import com.axelor.meta.db.repo.MetaFieldRepository;
-import com.axelor.meta.db.repo.MetaModelRepository;
-import com.axelor.meta.db.repo.MetaTranslationRepository;
-import com.axelor.studio.db.repo.ViewBuilderRepository;
-import com.axelor.studio.db.repo.ViewItemRepository;
-import com.axelor.studio.service.ConfigurationService;
-import com.axelor.studio.service.ViewLoaderService;
-import com.axelor.studio.service.builder.ModelBuilderService;
-import com.axelor.studio.service.data.importer.DataViewService;
-import com.google.common.base.Strings;
-import com.google.inject.Inject;
 
-public abstract class DataCommonService {
+public class CommonService {
 	
 	public static final String[] HEADERS = new String[]{
+		"Note",
 		"Module", 
+		"If Module",
 		"Object", 
 		"View", 
-		"Field name", 
-		"Field title",
-		"Field type", 
+		"Name", 
+		"Title",
+		"Title FR",
+		"Type", 
 		"Selection",
+		"Selection FR",
 		"Menu",
 		"Required",
-		"Required if",
 		"Readonly",
-		"Readonly if",
 		"Hidden",
-		"Hide if",
+		"Show if",
+		"If config",
 		"Formula",
 		"Event",
 		"Domain",
 		"On change",
-		"On click",
 		"Colspan",
 		"Grid",
 		"Help",
-		"Panel Level"
+		"Help FR",
+		"Panel Level",
+		"Widget"
 	};
 	
 	
-	public final static Map<String, String> fieldTypes;
+	public final static Map<String, String> FIELD_TYPES;
 
 	static {
 		Map<String, String> map = new HashMap<String, String>();
@@ -93,10 +82,10 @@ public abstract class DataCommonService {
 		map.put("int", "integer");
 		map.put("decimal", "decimal");
 		map.put("file", "many-to-one");
-		fieldTypes = Collections.unmodifiableMap(map);
+		FIELD_TYPES = Collections.unmodifiableMap(map);
 	}
 	
-	public final static Map<String, String> viewElements;
+	public final static Map<String, String> VIEW_ELEMENTS;
 
 	static {
 		Map<String, String> map = new HashMap<String, String>();
@@ -104,7 +93,6 @@ public abstract class DataCommonService {
 		map.put("panelbook", "panelbook");
 		map.put("panelside", "panelside");
 		map.put("paneltab", "paneltab");
-		map.put("menu", "menu");
 		map.put("button", "button");
 		map.put("wizard", "wizard");
 		map.put("error", "error");
@@ -121,11 +109,11 @@ public abstract class DataCommonService {
 		map.put("onload", "onload");
 		map.put("colspan", "colspan");
 		map.put("spacer", "spacer");
-		viewElements = Collections.unmodifiableMap(map);
+		VIEW_ELEMENTS = Collections.unmodifiableMap(map);
 	}
 	
 	
-	protected final static List<String> ignoreTypes;
+	public final static List<String> IGNORE_TYPES;
 	
 	static {
 		List<String> types = new ArrayList<String>();
@@ -133,10 +121,11 @@ public abstract class DataCommonService {
 		types.add("tip");
 		types.add("warn");
 		types.add("note");
-		ignoreTypes = Collections.unmodifiableList(types);
+		types.add("empty");
+		IGNORE_TYPES = Collections.unmodifiableList(types);
 	}
 	
-	public final static Map<String, String> frMap;
+	public final static Map<String, String> FR_MAP;
 
 	static {
 		Map<String, String> map = new HashMap<String, String>();
@@ -150,34 +139,38 @@ public abstract class DataCommonService {
 		map.put("case à cocher", "boolean");
 		map.put("Astuce", "tip");
 		map.put("Attention", "warn");
-		frMap = Collections.unmodifiableMap(map);
+		FR_MAP = Collections.unmodifiableMap(map);
 	}
 	
-	protected final static int MODULE = 0;
-	protected final static int MODEL = 1;
-	protected final static int VIEW = 2;
-	protected final static int NAME = 3;
-	protected final static int TITLE = 4;
-	protected final static int TYPE = 5;
-	protected final static int SELECT = 6;
-	protected final static int MENU = 7;
-	protected final static int REQUIRED = 8;
-	protected final static int REQUIRED_IF = 9;
-	protected final static int READONLY = 10;
-	protected final static int READONLY_IF = 11;
-	protected final static int HIDDEN = 12;
-	protected final static int HIDE_IF = 13;
-	protected final static int FORMULA = 14;
-	protected final static int EVENT = 15;
-	protected final static int DOMAIN = 16;
-	protected final static int ON_CHANGE = 17;
-	protected final static int ON_CLICK = 18;
-	protected final static int COLSPAN = 19;
-	protected final static int GRID = 20;
-	protected final static int HELP = 21;
-	protected final static int PANEL_LEVEL = 22;
-	
-	protected final static Map<String, String> relationshipMap;
+	public final static int NOTE = 0;
+	public final static int MODULE = 1;
+	public final static int IF_MODULE = 2;
+	public final static int MODEL = 3;
+	public final static int VIEW = 4;
+	public final static int NAME = 5;
+	public final static int TITLE = 6;
+	public final static int TITLE_FR = 7;
+	public final static int TYPE = 8;
+	public final static int SELECT = 9;
+	public final static int SELECT_FR = 10;
+	public final static int MENU = 11;
+	public final static int REQUIRED = 12;
+	public final static int READONLY = 13;
+	public final static int HIDDEN = 14;
+	public final static int SHOW_IF = 15;
+	public final static int IF_CONFIG = 16;
+	public final static int FORMULA = 17;
+	public final static int EVENT = 18;
+	public final static int DOMAIN = 19;
+	public final static int ON_CHANGE = 20;
+	public final static int COLSPAN = 21;
+	public final static int GRID = 22;
+	public final static int HELP = 23;
+	public final static int HELP_FR = 24;
+	public final static int PANEL_LEVEL = 25;
+	public final static int WIDGET = 26;
+
+	public final static Map<String, String> RELATIONAL_TYPES;
 
 	static {
 		Map<String, String> map = new HashMap<String, String>();
@@ -186,53 +179,27 @@ public abstract class DataCommonService {
 		map.put("m2m", "ManyToMany");
 		map.put("m2o", "ManyToOne");
 		map.put("file", "ManyToOne");
-		relationshipMap = Collections.unmodifiableMap(map);
+		map.put("o2o", "OneToOne");
+		RELATIONAL_TYPES = Collections.unmodifiableMap(map);
 	}
 	
-	protected static final List<String> referenceTypes = Arrays.asList(new String[]{"o2m","m2m","m2o","wizard", "o2o"});
+	public final static String[] MODULE_HEADERS = new String[] {"Module", "Depends", "Title", "Version", "Description", "Parent view priority"};
 	
-	@Inject
-	protected MetaModelRepository metaModelRepo;
-
-	@Inject
-	protected DataViewService viewImporterService;
-
-	@Inject
-	protected ModelBuilderService modelBuilderService;
-
-	@Inject
-	protected MetaFieldRepository metaFieldRepo;
-
-	@Inject
-	protected ViewLoaderService viewLoaderService;
-
-	@Inject
-	protected ViewItemRepository viewItemRepo;
-
-	@Inject
-	protected ViewBuilderRepository viewBuilderRepo;
-
-	@Inject
-	protected MetaTranslationRepository metaTranslationRepo;
-	
-	@Inject
-	protected ConfigurationService configService;
-
 	public final Inflector inflector = Inflector.getInstance();
-
-	protected String getValue(Row row, int index) {
-		
-		Cell cell = row.getCell(index);
-		if (cell != null && cell.getCellType() == Cell.CELL_TYPE_STRING) {
-			String val = cell.getStringCellValue();
-			if(Strings.isNullOrEmpty(val)){
-				return null;
-			}
-			return val;
-		}
-
-		return null;
-	}
+	
+//	public static String getValue(Row row, int index) {
+//		
+//		Cell cell = row.getCell(index);
+//		if (cell != null && cell.getCellType() == Cell.CELL_TYPE_STRING) {
+//			String val = cell.getStringCellValue();
+//			if(Strings.isNullOrEmpty(val)){
+//				return null;
+//			}
+//			return val.trim();
+//		}
+//
+//		return null;
+//	}
 	
 	/**
 	 * Method to create field name from title if name of field is blank. It will
@@ -250,6 +217,6 @@ public abstract class DataCommonService {
 		return inflector.camelize(inflector.simplify(title.trim()), true);
 
 	}
-
+	
 
 }

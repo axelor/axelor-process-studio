@@ -38,8 +38,6 @@ import com.axelor.meta.schema.views.Field;
 import com.axelor.meta.schema.views.GridView;
 import com.axelor.studio.db.ViewBuilder;
 import com.axelor.studio.db.ViewItem;
-import com.axelor.studio.service.ConfigurationService;
-import com.google.inject.Inject;
 
 /**
  * This service class generate GridView from ViewBuilder.
@@ -50,9 +48,6 @@ import com.google.inject.Inject;
 public class GridBuilderService {
 
 	protected Logger log = LoggerFactory.getLogger(getClass());
-
-	@Inject
-	private ConfigurationService configService;
 
 	/**
 	 * Root method to access the service to get GridView from ViewBuilder
@@ -99,12 +94,16 @@ public class GridBuilderService {
 		GridView grid = null;
 
 		MetaView metaView = viewBuilder.getMetaView();
-
+		
+		String module = viewBuilder.getMetaModule().getName() + "-";
+		String xmlId = module + viewBuilder.getName();
+		
 		if (metaView == null) {
 			grid = new GridView();
 			grid.setName(viewBuilder.getName());
 			grid.setModel(viewBuilder.getModel());
 			grid.setTitle(viewBuilder.getTitle());
+			grid.setXmlId(xmlId);
 			return grid;
 		}
 
@@ -112,11 +111,6 @@ public class GridBuilderService {
 		List<AbstractView> views = objectViews.getViews();
 		if (!views.isEmpty()) {
 			grid = (GridView) views.get(0);
-			String xmlId = grid.getXmlId();
-			String module = configService.getModuleName() + "-";
-			if (xmlId == null || !xmlId.startsWith(module)) {
-				xmlId = module + grid.getName();
-			}
 			grid.setXmlId(xmlId);
 		}
 
@@ -208,7 +202,12 @@ public class GridBuilderService {
 		}
 
 		for (Integer key : itemMap.keySet()) {
-			fields.add(key, itemMap.get(key));
+			if (key < fields.size()) {
+				fields.add(key, itemMap.get(key));
+			}
+			else {
+				fields.add(itemMap.get(key));
+			}
 		}
 
 		grid.setItems(fields);

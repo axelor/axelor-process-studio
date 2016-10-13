@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import javax.validation.ValidationException;
 
-import com.axelor.auth.AuthUtils;
 import com.axelor.exception.AxelorException;
 import com.axelor.i18n.I18n;
 import com.axelor.meta.MetaFiles;
@@ -32,21 +31,25 @@ import com.axelor.rpc.ActionRequest;
 import com.axelor.rpc.ActionResponse;
 import com.axelor.studio.db.DataManager;
 import com.axelor.studio.db.repo.DataManagerRepository;
-import com.axelor.studio.service.data.exporter.DataAsciidocService;
-import com.axelor.studio.service.data.exporter.DataExportService;
-import com.axelor.studio.service.data.importer.DataModelService;
+import com.axelor.studio.service.data.exporter.ExportAsciidoc;
+import com.axelor.studio.service.data.exporter.ExportService;
+import com.axelor.studio.service.data.exporter.DataWriter;
+import com.axelor.studio.service.data.exporter.DataWriterExcel;
+import com.axelor.studio.service.data.importer.ImportService;
+import com.axelor.studio.service.data.importer.DataReader;
+import com.axelor.studio.service.data.importer.DataReaderExcel;
 import com.google.inject.Inject;
 
 public class DataManagerController {
-
-	@Inject
-	private DataModelService modelService;
-
-	@Inject
-	private DataExportService exportService;
 	
 	@Inject
-	private DataAsciidocService asccidocService;
+	private ImportService  importService;
+	
+	@Inject
+	private ExportService exportService;
+	
+	@Inject
+	private ExportAsciidoc dataExportAsciidoc;
 	
 	@Inject
 	private MetaFiles metaFiles;
@@ -65,7 +68,9 @@ public class DataManagerController {
 		dataManager = dataManagerRepo.find(dataManager.getId());
 
 		try {
-			File logFile = modelService.importModels(dataManager);
+			MetaFile importFile = dataManager.getMetaFile();
+			DataReader reader = new DataReaderExcel();
+			File logFile = importService.importData(reader, importFile);
 			if (logFile != null) {
 				response.setFlash(I18n.get("Input file is not valid. "
 						+ "Please check the log file generated"));
@@ -83,18 +88,19 @@ public class DataManagerController {
 		
 	}
 	
-	public void exportData(ActionRequest request, ActionResponse response){
+	public void exportData(ActionRequest request, ActionResponse response) throws AxelorException{
 		
 		DataManager dataManager = request.getContext().asType(DataManager.class);
 		
 		MetaFile exportFile = dataManager.getMetaFile();
-		Boolean panelOnly = dataManager.getExportOnlyPanel();
-		if(exportFile != null && exportFile.getId() != null && !panelOnly){
+		DataWriter writer = new DataWriterExcel();
+		DataReader reader = new DataReaderExcel();
+		if(exportFile != null && exportFile.getId() != null){
 			exportFile = metaFileRepo.find(exportFile.getId());
-			exportFile = exportService.export(exportFile, false);
+			exportFile = exportService.export(exportFile, writer, reader);
 		}
 		else{
-			exportFile = exportService.export(null, panelOnly);
+			exportFile = exportService.export(null, writer, reader);
 		}
 		
 		response.setValue("metaFile", exportFile);
@@ -105,12 +111,12 @@ public class DataManagerController {
 	public void generateAsciidoc(ActionRequest request, ActionResponse response) {
 		
 		DataManager dataManager = request.getContext().asType(DataManager.class);
-		
+		DataReader reader = new DataReaderExcel();
 		MetaFile exportFile = dataManager.getMetaFile();
 		
 		try {
-			MetaFile asciidocFile = asccidocService.export(exportFile, 
-					dataManager.getLanguageSelect());
+			MetaFile asciidocFile = dataExportAsciidoc.export(exportFile, reader, 
+					dataManager.getLanguageSelect(), "AsciiDoc");
 			response.setValue("asciidocFile", asciidocFile);
 		} catch (IOException e) {
 			e.printStackTrace();

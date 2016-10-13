@@ -29,9 +29,13 @@
      <boolean name="hidden" title="Hidden ?"/>
      <string name="hideIf" title="Hide If" />
      <string name="showIf" title="ShowIf" />
+     <boolean name="hideTitle" title="Hide title" />
 	 <many-to-one name="metaSelect" ref="com.axelor.meta.db.MetaSelect" title="Selection" />
      <string name="fieldType" title="Type"/>
      <integer name="colSpan" title="Colspan" />
+     <string name="ifModule" title="If module" />
+     <string name="ifConfig" title="If config" />
+     <string name="target" title="Target" />
      
      <!-- Button fields -->
      <string name="icon" title="Icon" />
@@ -48,7 +52,14 @@
      
      <!-- Nested view -->
      <many-to-one name="nestedField" ref="ViewItem" />
-     <one-to-many name="nestedViewItems" ref="ViewItem" title="Nested items" mappedBy="nestedField" />
+     <one-to-many name="nestedViewItems" ref="ViewItem" title="Nested items" mappedBy="nestedField" orderBy="sequence" />
+     
+     <!-- Panel related level -->
+     <string name="panelLevel" />
+     
+     <!-- Fields for relational field -->
+     <string name="formView" title="Form view" />
+     <string name="gridView" title="Grid view" />
      
   </entity>
 

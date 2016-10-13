@@ -18,6 +18,8 @@
     <string name="name" title="Name"  required="true"/>
     <string name="model" title="Model" />
     <many-to-one name="metaView" title="Extends" ref="com.axelor.meta.db.MetaView" />
+    <many-to-one name="parent" title="Extends" ref="com.axelor.studio.db.ViewBuilder" />
+    
     <many-to-one name="metaViewGenerated" title="View generated" ref="com.axelor.meta.db.MetaView" />
     <string name="viewType" title="View type" />
     <boolean name="edited" title="Edited" default="true"/>
@@ -49,6 +51,8 @@
     
     <!-- Add only new panels-->
     <boolean name="addOnly" />
+    
+    <many-to-one name="metaModule" ref="com.axelor.meta.db.MetaModule" title="Module" required="true"/>
   </entity>
     
     

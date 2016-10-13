@@ -5,8 +5,8 @@
 
   <module name="meta" package="com.axelor.meta.db" />
   
-  <entity name="MetaSelect" cachable="true">
-    <boolean name="customised" />
+  <entity name="MetaModule" cachable="true">
+	<boolean name="customised" />
   </entity>
-    
+  
  </domain-models>

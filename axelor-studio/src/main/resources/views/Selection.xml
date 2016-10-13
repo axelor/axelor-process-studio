@@ -110,6 +110,7 @@
     	<option value="1">Button</option>
     	<option value="2">Label</option>
     	<option value="3">Spacer</option>
+    	<option value="4">Dashlet</option>
     </selection>
     
     <selection name="studio.action.builder.line.validation.type.select">
@@ -117,6 +118,12 @@
     	<option value="alert">Alert</option>
     	<option value="info">Information</option>
     	<option value="notify">Notification</option>
+    </selection>
+    
+    <selection name="record.import.rule.select">
+    	<option value="0">Create</option>
+    	<option value="1">Search</option>
+    	<option value="2">Search or Create</option>
     </selection>
     
 </object-views>
