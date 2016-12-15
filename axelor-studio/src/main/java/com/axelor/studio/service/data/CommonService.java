@@ -101,6 +101,7 @@ public class CommonService {
 		map.put("label", "label");
 		map.put("warn", "warn");
 		map.put("menubar", "menubar");
+		map.put("stream", "stream");
 		map.put("menubar.item", "menubar");
 		map.put("dashlet", "dashlet");
 		map.put("general", "general");

@@ -64,6 +64,7 @@ public class ValidatorService {
 		IGNORE_NAMES.add("spacer");
 		IGNORE_NAMES.add("label");
 		IGNORE_NAMES.add("dashlet");
+		IGNORE_NAMES.add("stream");
 	}
 	
 	private static final String SUM_PATTERN = "sum\\(([^;^:]+;[^;^:]+(:[^:^;]+)?)\\)";
