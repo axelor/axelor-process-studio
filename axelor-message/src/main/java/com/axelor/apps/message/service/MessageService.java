@@ -34,10 +34,10 @@ public interface MessageService {
 	
 	@Transactional(rollbackOn = {AxelorException.class, Exception.class})
 	public Message createMessage(String model, int id, String subject, String content, EmailAddress fromEmailAddress, List<EmailAddress> replytoEmailAddressList, List<EmailAddress> toEmailAddressList, 
-			List<EmailAddress> ccEmailAddressList, List<EmailAddress> bccEmailAddressList, Set<MetaFile> metaFiles, String addressBlock, int mediaTypeSelect);
+			List<EmailAddress> ccEmailAddressList, List<EmailAddress> bccEmailAddressList, Set<MetaFile> metaFiles, String addressBlock, int mediaTypeSelect) throws IOException;
 
 	@Transactional(rollbackOn = Exception.class)
-	public void attachMetaFiles( Message message, Set<MetaFile> metaFiles );
+	public void attachMetaFiles( Message message, Set<MetaFile> metaFiles ) throws IOException;
 	
 	public Set<MetaAttachment> getMetaAttachments( Message message );
 	
