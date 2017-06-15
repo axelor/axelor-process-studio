@@ -84,7 +84,7 @@ public class MessageServiceImpl implements MessageService {
 	@Override
 	@Transactional(rollbackOn = {AxelorException.class, Exception.class})
 	public Message createMessage(String model, int id, String subject, String content, EmailAddress fromEmailAddress, List<EmailAddress> replyToEmailAddressList, List<EmailAddress> toEmailAddressList, List<EmailAddress> ccEmailAddressList, 
-			List<EmailAddress> bccEmailAddressList, Set<MetaFile> metaFiles, String addressBlock, int mediaTypeSelect) throws IOException  {
+			List<EmailAddress> bccEmailAddressList, Set<MetaFile> metaFiles, String addressBlock, int mediaTypeSelect)  {
 		
 		Message message = createMessage( content, fromEmailAddress,	model, id, null, 0, getTodayLocalTime(), false,	MessageRepository.STATUS_DRAFT, subject, MessageRepository.TYPE_SENT,
 				replyToEmailAddressList, toEmailAddressList, ccEmailAddressList, bccEmailAddressList, addressBlock, mediaTypeSelect) ;
@@ -98,7 +98,7 @@ public class MessageServiceImpl implements MessageService {
 
 	@Override
 	@Transactional(rollbackOn = Exception.class)
-	public void attachMetaFiles( Message message, Set<MetaFile> metaFiles ) throws IOException {
+	public void attachMetaFiles( Message message, Set<MetaFile> metaFiles ) {
 		
 		Preconditions.checkNotNull( message.getId() );
 		
