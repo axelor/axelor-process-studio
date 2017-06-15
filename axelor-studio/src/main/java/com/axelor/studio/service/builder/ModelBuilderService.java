@@ -20,6 +20,7 @@ package com.axelor.studio.service.builder;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -78,7 +79,7 @@ public class ModelBuilderService {
 
 	private static final String VERSION = VersionUtils.getVersion().feature;
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private Map<String, StringBuilder> moduleSequenceMap;
 	

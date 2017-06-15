@@ -20,6 +20,7 @@ package com.axelor.studio.service;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,7 +46,7 @@ import com.google.inject.Inject;
  */
 public class ConfigurationService {
 
-	protected Logger log = LoggerFactory.getLogger(getClass());
+	protected Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	@Inject
 	private MetaModuleRepository moduleRepo;

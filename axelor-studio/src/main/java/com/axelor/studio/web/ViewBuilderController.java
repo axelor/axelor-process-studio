@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.web;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,7 +46,7 @@ import com.google.inject.Inject;
 
 public class ViewBuilderController {
 
-	private Logger log = LoggerFactory.getLogger(getClass());
+	private Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	@Inject
 	private ViewLoaderService viewLoaderService;

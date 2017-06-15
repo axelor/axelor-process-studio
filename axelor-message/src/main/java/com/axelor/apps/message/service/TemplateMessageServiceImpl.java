@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.mail.MessagingException;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.*;
 
 public class TemplateMessageServiceImpl implements TemplateMessageService {
@@ -52,7 +53,7 @@ public class TemplateMessageServiceImpl implements TemplateMessageService {
 	private static final String RECIPIENT_SEPARATOR = ";|,";
 	private static final char TEMPLATE_DELIMITER = '$';
 	
-	private final Logger log = LoggerFactory.getLogger( getClass() );
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	protected TemplateMaker maker;
 	

@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service.data.importer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,7 +61,7 @@ import com.google.inject.persist.Transactional;
 public class FormImporter {
 
 	private final static Logger log = LoggerFactory
-			.getLogger(FormImporter.class);
+			.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	private final static Pattern DOMAIN_PATTERN = Pattern.compile("(:[\\w\\d\\.]+)");
 	

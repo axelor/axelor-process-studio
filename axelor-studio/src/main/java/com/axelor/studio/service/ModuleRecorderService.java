@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -56,7 +57,7 @@ import com.google.inject.persist.Transactional;
  */
 public class ModuleRecorderService {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	private static final String[] ENV_VARS = new String[] { "CATALINA_HOME", "JAVA_HOME", "PGHOME" };
 

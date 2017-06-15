@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service.builder;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -79,7 +80,7 @@ import com.google.inject.Inject;
  */
 public class FormBuilderService {
 
-	protected Logger log = LoggerFactory.getLogger(getClass());
+	protected Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	// List of RecordFields generated for default values.
 	private List<RecordField> defaultFields;

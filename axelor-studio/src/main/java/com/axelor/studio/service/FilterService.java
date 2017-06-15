@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,7 +41,7 @@ public class FilterService {
 	
 	public static final List<String> NO_PARAMS = Arrays.asList(new String[]{"isNull","notNull", "empty", "notEmpty"});
 	
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	@Inject
 	private MetaFieldRepository metaFieldRepo;

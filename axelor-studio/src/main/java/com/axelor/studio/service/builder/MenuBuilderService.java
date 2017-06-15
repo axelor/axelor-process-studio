@@ -20,6 +20,7 @@ package com.axelor.studio.service.builder;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,7 +60,7 @@ import com.google.inject.persist.Transactional;
  */
 public class MenuBuilderService {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private List<MenuItem> menuItems;
 

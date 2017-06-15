@@ -19,6 +19,7 @@ package com.axelor.studio.service.builder;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -73,7 +74,7 @@ import com.google.inject.persist.Transactional;
 
 public class ActionBuilderService {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private Map<String, List<Action>> modelActionMap;
 

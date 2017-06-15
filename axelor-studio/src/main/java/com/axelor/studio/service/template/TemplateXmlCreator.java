@@ -18,6 +18,7 @@
 package com.axelor.studio.service.template;
 
 import java.io.File;
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -58,7 +59,7 @@ import com.google.inject.Inject;
 
 public class TemplateXmlCreator {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	@Inject
 	private MetaModelRepository metaModelRepo;

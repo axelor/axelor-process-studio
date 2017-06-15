@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service.data.importer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,7 +44,7 @@ import com.google.inject.persist.Transactional;
 
 public class FormulaImporter {
 	
-	private final Logger log = LoggerFactory.getLogger(FormulaImporter.class); 
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	@Inject
 	private ActionBuilderRepository actionBuilderRepo;

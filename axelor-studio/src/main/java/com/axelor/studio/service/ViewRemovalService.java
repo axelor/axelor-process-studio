@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -50,7 +51,7 @@ import com.google.inject.persist.Transactional;
 
 public class ViewRemovalService {
 
-	private Logger log = LoggerFactory.getLogger(getClass());
+	private Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private Map<String, ObjectViews> modelMap;
 

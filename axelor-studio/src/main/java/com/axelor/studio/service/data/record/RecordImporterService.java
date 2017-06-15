@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service.data.record;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -50,7 +51,7 @@ import com.google.inject.Inject;
 
 public class RecordImporterService {
 	
-	private final Logger logger = LoggerFactory.getLogger(RecordImporterService.class);
+	private final Logger logger = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	private static final String SEARCH = "Search";
 	private static final String UNIQUE = "Unique";

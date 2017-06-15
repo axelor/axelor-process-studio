@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service.data.importer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -52,7 +53,7 @@ import com.google.inject.persist.Transactional;
 
 public class MenuImporter {
 	
-	private final Logger log = LoggerFactory.getLogger(MenuImporter.class);
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	private Integer parentMenuSeq = 0;
 	

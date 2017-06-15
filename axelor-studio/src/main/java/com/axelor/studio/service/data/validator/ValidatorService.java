@@ -20,6 +20,7 @@ package com.axelor.studio.service.data.validator;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,7 +50,7 @@ import com.google.inject.Inject;
 
 public class ValidatorService {
 	
-	private final Logger log = LoggerFactory.getLogger(ValidatorService.class);
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	private final static List<String> IGNORE_NAMES = new ArrayList<String>();
 	{	

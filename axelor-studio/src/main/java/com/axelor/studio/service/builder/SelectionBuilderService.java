@@ -20,6 +20,7 @@ package com.axelor.studio.service.builder;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,7 @@ import com.google.inject.Inject;
 
 public class SelectionBuilderService {
 	
-	private final Logger log = LoggerFactory.getLogger(SelectionBuilderService.class);
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	@Inject
 	private MetaSelectRepository metaSelectRepo;

@@ -32,9 +32,11 @@ import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 
+import java.lang.invoke.MethodHandles;
+
 public class ModelImporter {
 	
-	private final static Logger log = LoggerFactory.getLogger(ModelImporter.class);
+	private final static Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	@Inject
 	private MetaFieldRepository metaFieldRepo;

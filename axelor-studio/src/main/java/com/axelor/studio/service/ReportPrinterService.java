@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service;
 
+import java.lang.invoke.MethodHandles;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,7 +41,7 @@ import com.axelor.text.Template;
  */
 public class ReportPrinterService {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final Pattern tablePattern = Pattern
 			.compile("<table class=\"table table-bordered table-header\">(.*?</table>)");
