@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -19,6 +19,7 @@ package com.axelor.exception.service;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.invoke.MethodHandles;
 
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -37,7 +38,7 @@ import com.axelor.rpc.ActionResponse;
  */
 public class TraceBackService {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TraceBackService.class);
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	
 	/**

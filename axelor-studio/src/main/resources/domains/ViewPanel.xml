@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <domain-models xmlns="http://axelor.com/xml/ns/domain-models"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.0.xsd">
+  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.1.xsd">
 
   <module name="studio" package="com.axelor.studio.db" />
   
   <entity name="ViewPanel" cachable="true">
     <![CDATA[
-    This object store panels of form view.
+     This class represents a panel of the form view. 
     ]]>
     <string name="name" title="Name"/>
     <string name="title" title="Title"/>

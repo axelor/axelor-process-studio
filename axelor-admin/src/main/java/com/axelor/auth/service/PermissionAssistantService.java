@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -20,6 +20,7 @@ package com.axelor.auth.service;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,7 +29,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.Set;
 
 import org.apache.commons.io.output.FileWriterWithEncoding;
 import org.joda.time.LocalDateTime;
@@ -64,7 +67,7 @@ import com.google.inject.persist.Transactional;
 
 public class PermissionAssistantService {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PermissionAssistantService.class);
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	@Inject
 	private MetaPermissionRepository metaPermissionRepository;
@@ -160,7 +163,6 @@ public class PermissionAssistantService {
 		csvWriter.writeNext(headerRow.toArray(groupRow));
 
 		writeObject(csvWriter, assistant, groupRow.length);
-
 	}
 
 	public Comparator<Object> compareField() {
@@ -185,12 +187,33 @@ public class PermissionAssistantService {
 
 			String[] row = new String[size];
 			row[0] = object.getFullName();
-			csvWriter.writeNext(row);
 
+			Set<Group> groupSet = assistant.getGroupSet();
+			int colIndex = 4;
+			
+			for (Group group : groupSet) {
+				for (Permission perm : group.getPermissions()) {
+					if (perm.getObject().equals(object.getFullName())) {
+						row[colIndex++] = perm.getCanRead() == false ? "" : "x";
+						row[colIndex++] = perm.getCanWrite() == false ? "" : "x";
+						row[colIndex++] = perm.getCanCreate() == false ? "" : "x";
+						row[colIndex++] = perm.getCanRemove() == false ? "" : "x";
+						row[colIndex++] = perm.getCanExport() == false ? "" : "x";
+						row[colIndex++] = ""; // readonly if
+						row[colIndex++] = ""; // hide if
+						break;
+					}
+				}
+				colIndex++;
+			}
+			
+			csvWriter.writeNext(row);
 			List<MetaField> fieldList = object.getMetaFields();
 			Collections.sort(fieldList, compareField());
 
 			for(MetaField field : fieldList){
+
+				colIndex = 4;
 
 				row = new String[size];
 				row[1] = field.getName();
@@ -201,13 +224,30 @@ public class PermissionAssistantService {
 				}
 				row[2] = title;
 
+				for (Group group : groupSet) {
+					Set<MetaPermission> fieldPermission = group.getMetaPermissions();
+					for (MetaPermission perm : fieldPermission) {
+						if (perm.getObject().equals(object.getFullName())) {
+							for (MetaPermissionRule fieldPerm : perm.getRules()) {
+								if (field.getName().equals(fieldPerm.getField())) {
+									row[colIndex++] = fieldPerm.getCanRead() == false ? "" : "x";
+									row[colIndex++] = fieldPerm.getCanWrite() == false ? "" : "x";
+									row[colIndex++] = "";
+									row[colIndex++] = "";
+									row[colIndex++] = fieldPerm.getCanExport() == false ? "" : "x";
+									row[colIndex++] = Strings.isNullOrEmpty(fieldPerm.getReadonlyIf()) ? "" : fieldPerm.getReadonlyIf(); // readonly if
+									row[colIndex++] = Strings.isNullOrEmpty(fieldPerm.getHideIf()) ? "" : fieldPerm.getHideIf(); // hide if
+								}
+							}
+						}
+ 					}
+					colIndex++;
+				}
 				csvWriter.writeNext(row);
 			}
 		}
-
 	}
-
-
+	
 	private boolean checkHeaderRow(String[] headerRow){
 
 		@SuppressWarnings("serial")

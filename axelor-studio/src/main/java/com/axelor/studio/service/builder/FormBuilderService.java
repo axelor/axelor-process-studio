@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.service.builder;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,6 +40,8 @@ import com.axelor.meta.db.MetaView;
 import com.axelor.meta.loader.XMLViews;
 import com.axelor.meta.schema.ObjectViews;
 import com.axelor.meta.schema.actions.Action;
+import com.axelor.meta.schema.actions.ActionAttrs;
+import com.axelor.meta.schema.actions.ActionAttrs.Attribute;
 import com.axelor.meta.schema.actions.ActionRecord;
 import com.axelor.meta.schema.actions.ActionRecord.RecordField;
 import com.axelor.meta.schema.views.AbstractPanel;
@@ -77,7 +80,7 @@ import com.google.inject.Inject;
  */
 public class FormBuilderService {
 
-	protected Logger log = LoggerFactory.getLogger(getClass());
+	protected Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	// List of RecordFields generated for default values.
 	private List<RecordField> defaultFields;
@@ -88,8 +91,12 @@ public class FormBuilderService {
 
 	private List<AbstractWidget> formViewItems;
 	
+	private List<Attribute> attributes;
+	
 	private boolean autoCreate = false;
-
+	
+	private ActionAttrs parentCheckAction = null;
+	
 	@Inject
 	private FilterService filterService;
 	
@@ -113,6 +120,8 @@ public class FormBuilderService {
 		defaultFields = new ArrayList<RecordField>();
 		panelMap = new HashMap<String, AbstractPanel>();
 		actionRecords = new ArrayList<ActionRecord>();
+		attributes = new ArrayList<Attribute>();
+		parentCheckAction = null;
 
 		FormView formView = getFormView(viewBuilder);
 		processFormView(formView, viewBuilder);
@@ -127,6 +136,17 @@ public class FormBuilderService {
 		if (!defaultFields.isEmpty()) {
 			addOnNewAction(formView, viewBuilder.getModel());
 			log.debug("On new actions: {}", formView.getOnNew());
+		}
+		
+		if (!attributes.isEmpty()) {
+			String parentCheck = "action-attrs-check-parent-" + viewBuilder.getName();
+			log.debug("Adding on load: {}", parentCheck);
+			parentCheckAction = new ActionAttrs();
+			parentCheckAction.setName(parentCheck);
+			parentCheckAction.setModuleToCheck(viewBuilder.getMetaModule().getName());
+			parentCheckAction.setAttributes(attributes);
+			formView.setOnLoad(getUpdatedAction(formView.getOnLoad(), parentCheck));
+			formView.setOnNew(getUpdatedAction(formView.getOnNew(), parentCheck));
 		}
 		
 		removeEmptyPanels(formViewItems);
@@ -348,6 +368,10 @@ public class FormBuilderService {
 	public List<ActionRecord> getActionRecords() {
 
 		return actionRecords;
+	}
+	
+	public ActionAttrs getParentCheckAction() {
+		return parentCheckAction;
 	}
 
 	/**
@@ -641,13 +665,14 @@ public class FormBuilderService {
 		if (colspan != null && StringUtils.isNumeric(colspan)) {
 			abstractPanel.setColSpan(Integer.parseInt(colspan));
 		}
-
-		abstractPanel.setName(viewPanel.getName());
-		abstractPanel.setShowIf(viewPanel.getShowIf());
+		
+		String name = viewPanel.getName();
+		abstractPanel.setName(name);
+		abstractPanel.setShowIf(checkParentIf(name, "show", viewPanel.getShowIf()));
 		abstractPanel.setModuleToCheck(viewPanel.getIfModule());
 		abstractPanel.setConditionToCheck(viewPanel.getIfConfig());
-		abstractPanel.setReadonlyIf(viewPanel.getReadonlyIf());
-		abstractPanel.setHideIf(viewPanel.getHideIf());
+		abstractPanel.setReadonlyIf(checkParentIf(name, "readonly", viewPanel.getReadonlyIf()));
+		abstractPanel.setHideIf(checkParentIf(name, "hidden", viewPanel.getHideIf()));
 		
 		if (viewPanel.getReadonly()) {
 			abstractPanel.setReadonly(true);
@@ -815,13 +840,14 @@ public class FormBuilderService {
 	private PanelField createField(ViewItem viewItem) {
 
 		PanelField field = new PanelField();
-		field.setName(viewItem.getName());
+		String name = viewItem.getName();
+		field.setName(name);
 		field.setOnChange(viewItem.getOnChange());
 		field.setDomain(viewItem.getDomainCondition());
-		field.setReadonlyIf(viewItem.getReadonlyIf());
-		field.setHideIf(viewItem.getHideIf());
-		field.setShowIf(viewItem.getShowIf());
-		field.setRequiredIf(viewItem.getRequiredIf());
+		field.setReadonlyIf(checkParentIf(name, "readonly", viewItem.getReadonlyIf()));
+		field.setHideIf(checkParentIf(name, "hidden", viewItem.getHideIf()));
+		field.setShowIf(checkParentIf(name, "show", viewItem.getShowIf()));
+		field.setRequiredIf(checkParentIf(name, "required", viewItem.getRequiredIf()));
 		field.setModuleToCheck(viewItem.getIfModule());
 		field.setConditionToCheck(viewItem.getIfConfig());
 		field.setFormView(viewItem.getFormView());
@@ -907,14 +933,15 @@ public class FormBuilderService {
 	private Button getButton(ViewItem viewItem) {
 
 		Button button = new Button();
-		button.setName(viewItem.getName());
+		String name = viewItem.getName();
+		button.setName(name);
 		button.setColSpan(viewItem.getColSpan());
 		button.setTitle(viewItem.getTitle());
 		button.setOnClick(viewItem.getOnClick());
 		button.setPrompt(viewItem.getPromptMsg());
-		button.setShowIf(viewItem.getShowIf());
-		button.setReadonlyIf(viewItem.getReadonlyIf());
-		button.setHideIf(viewItem.getHideIf());
+		button.setShowIf(checkParentIf(name, "show", viewItem.getShowIf()));
+		button.setReadonlyIf(checkParentIf(name, "readonly", viewItem.getReadonlyIf()));
+		button.setHideIf(checkParentIf(name, "hidden", viewItem.getHideIf()));
 		button.setModuleToCheck(viewItem.getIfModule());
 		button.setConditionToCheck(viewItem.getIfConfig());
 
@@ -982,7 +1009,8 @@ public class FormBuilderService {
 			List<AbstractWidget> panelItems, String level) {
 
 		PanelRelated panelRelated = new PanelRelated();
-		panelRelated.setName(viewItem.getName());
+		String name = viewItem.getName();
+		panelRelated.setName(name);
 		Integer colspan = viewItem.getColSpan();
 		if (colspan != null && colspan != 0) {
 			panelRelated.setColSpan(colspan);
@@ -993,9 +1021,9 @@ public class FormBuilderService {
 		
 		panelRelated.setOnChange(viewItem.getOnChange());
 		panelRelated.setDomain(viewItem.getDomainCondition());
-		panelRelated.setReadonlyIf(viewItem.getReadonlyIf());
-		panelRelated.setHideIf(viewItem.getHideIf());
-		panelRelated.setShowIf(viewItem.getShowIf());
+		panelRelated.setReadonlyIf(checkParentIf(name, "readonly", viewItem.getReadonlyIf()));
+		panelRelated.setHideIf(checkParentIf(name, "hidden", viewItem.getHideIf()));
+		panelRelated.setShowIf(checkParentIf(name, "show", viewItem.getShowIf()));
 		panelRelated.setModuleToCheck(viewItem.getIfModule());
 		panelRelated.setConditionToCheck(viewItem.getIfConfig());
 		panelRelated.setFormView(viewItem.getFormView());
@@ -1120,7 +1148,7 @@ public class FormBuilderService {
 		Label label = new Label();
 		label.setTitle(item.getTitle());
 		label.setName(item.getName());
-		label.setHideIf(item.getHideIf());
+		label.setHideIf(checkParentIf(item.getName(), "hidden", item.getHideIf()));
 		label.setConditionToCheck(item.getIfConfig());
 		label.setModuleToCheck(item.getIfModule());
 		label.setColSpan(item.getColSpan());
@@ -1211,5 +1239,20 @@ public class FormBuilderService {
 		}
 		
 	}
-
+	
+	private String checkParentIf(String field, String type, String condition) {
+		
+		if (field != null && condition != null && condition.contains("_parent.")) {
+			Attribute attr = new Attribute();
+			attr.setName(type.equals("show") ?  "hidden" : type);
+			attr.setFieldName(field);
+			attr.setCondition(condition);
+			attr.setExpression("eval:" + !type.equals("show"));
+			attributes.add(attr);
+			return null;
+		}
+		
+		return condition;
+	}
+	
 }

@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -17,6 +17,7 @@
  */
 package com.axelor.studio.utils;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -33,8 +34,9 @@ import com.google.common.collect.Maps;
 
 public class ActionHelper {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
+	@SuppressWarnings("unchecked")
 	public Object execute(String name, Object entity, Object parent) {
 
 		log.debug("Execute action: {}, object: {}", name, entity);
@@ -47,9 +49,8 @@ public class ActionHelper {
 		
 		Action action = MetaStore.getAction(name);
 
-		ActionHandler handler = createHandler(action, context,
-				Mapper.toMap(parent));
-		
+		ActionHandler handler = createHandler(action, context, Mapper.toMap(parent));
+
 		Object object = action.evaluate(handler);
 		log.debug("Object id: {}", ((Model) object).getId());
 		return object;

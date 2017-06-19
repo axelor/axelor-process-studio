@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <domain-models xmlns="http://axelor.com/xml/ns/domain-models"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.0.xsd">
+  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.1.xsd">
 
   <module name="studio" package="com.axelor.studio.db" />
   
   <entity name="MenuBuilder" cachable="true">
   	<![CDATA[
-    This object store edited menu with menu attributes. 
-    MetaMenu and 'menuitem' will be generated through this object. 
+    MenuBuilder represents the custom menu. It contains all the fields that are required to generate adk supported menu xml.
+    This class is used to refer a menu by other classes. 
     ]]>
     <string name="name" title="Name" required="true"/>
     <string name="title" title="Title" required="true"/>

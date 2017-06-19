@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -18,6 +18,7 @@
 package com.axelor.apps.message.web;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -48,7 +49,7 @@ public class GenerateMessageController {
 	@Inject
 	private TemplateRepository templateRepo;
 
-	private static final Logger LOG = LoggerFactory.getLogger(GenerateMessageController.class);
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	public void callMessageWizard(ActionRequest request, ActionResponse response)   {
 		
@@ -94,7 +95,7 @@ public class GenerateMessageController {
 	public void generateMessage(ActionRequest request, ActionResponse response)  {
 		
 		Context context = request.getContext();
-		Map<?,?> templateContext = (Map<?,?>) context.get("template");
+		Map<?,?> templateContext = (Map<?,?>) context.get("_xTemplate");
 		Template template = templateRepo.find( Long.parseLong( templateContext.get("id").toString() ) );
 		
 		Long objectId =  Long.parseLong( context.get("_objectId").toString() );

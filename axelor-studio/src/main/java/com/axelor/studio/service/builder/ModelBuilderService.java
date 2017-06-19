@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -20,6 +20,7 @@ package com.axelor.studio.service.builder;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -78,7 +79,7 @@ public class ModelBuilderService {
 
 	private static final String VERSION = VersionUtils.getVersion().feature;
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private Map<String, StringBuilder> moduleSequenceMap;
 	
@@ -572,9 +573,7 @@ public class ModelBuilderService {
 	/**
 	 * Method convert simple type name of field into adk supported 'typeName'
 	 * (which is type class name) for MetaField.
-	 * 
-	 * @param metaField
-	 *            MetaField to get typeName.
+	 *
 	 * @return Adk supported typeName.
 	 */
 	public String getFieldTypeName(String type) {
