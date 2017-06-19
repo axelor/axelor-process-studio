@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -19,6 +19,7 @@ package com.axelor.studio.service.data.importer;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -52,7 +53,7 @@ import com.google.inject.persist.Transactional;
 public class ImporterService {
 
 	private final static Logger log = LoggerFactory
-			.getLogger(ImporterService.class);
+			.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	private Map<String, Map<String, List<String>>> moduleMap;
 

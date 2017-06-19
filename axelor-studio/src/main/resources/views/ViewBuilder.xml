@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <object-views xmlns="http://axelor.com/xml/ns/object-views"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://axelor.com/xml/ns/object-views http://axelor.com/xml/ns/object-views/object-views_4.0.xsd">
+  xsi:schemaLocation="http://axelor.com/xml/ns/object-views http://axelor.com/xml/ns/object-views/object-views_4.1.xsd">
   
   <grid name="view-builder-grid" title="View builders" model="com.axelor.studio.db.ViewBuilder">
       <field name="name" />
@@ -54,10 +54,6 @@
   </action-record>
   
   <action-record name="action-view-builder-model-change" model="com.axelor.studio.db.ViewBuilder">
-      <field name="model" expr="eval:metaModel?.fullName" />
-  </action-record>
-  
-  <action-record name="action-view-builder-meta-model-change" model="com.axelor.studio.db.ViewBuilder">
       <field name="model" expr="eval:metaModel?.fullName" />
   </action-record>
   

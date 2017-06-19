@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <domain-models xmlns="http://axelor.com/xml/ns/domain-models"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.0.xsd">
+  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.1.xsd">
 
   <module name="studio" package="com.axelor.studio.db" />
   
   <entity name="ReportBuilder" cachable="true">
     <![CDATA[
-   	This class use to generate template from selected view and also add button in view. 
-   	It will store template and header/footer in html format. 
-   	It will be used to generate html report for a record.  
+   	ReportBuilder is used to generate a report in pdf format from the html template. 
+   	It contains all the important fields related with report. 
+   	It is also used for generating a html template from form view.   
     ]]>
     <string name="name" title="Name" required="true" unique="true" />
     <many-to-one name="metaModel" ref="com.axelor.meta.db.MetaModel" title="Model" required="true"/>

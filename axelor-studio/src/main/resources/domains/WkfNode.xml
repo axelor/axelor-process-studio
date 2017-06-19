@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <domain-models xmlns="http://axelor.com/xml/ns/domain-models"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.0.xsd">
+  xsi:schemaLocation="http://axelor.com/xml/ns/domain-models http://axelor.com/xml/ns/domain-models/domain-models_4.1.xsd">
 
   <module name="studio" package="com.axelor.studio.db" />
   
   <entity name="WkfNode" cachable="true">
       <![CDATA[
-	    This is workflow node and it represents status of object linked with workflow. 
-	    It is also used to generate menu entry based on status. 
+	    WkfNode represents a state of the workflow. A workflow must contains at least two state. 
+	    It is also used to generate a menu entry based on state. 
 	  ]]>
       <string name="name" title="Name" required="true"/>
       <string name="title" title="Title" required="true" />

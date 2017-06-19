@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2016 Axelor (<http://axelor.com>).
+ * Copyright (C) 2017 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -20,6 +20,7 @@ package com.axelor.studio.service.data.validator;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,7 +50,7 @@ import com.google.inject.Inject;
 
 public class ValidatorService {
 	
-	private final Logger log = LoggerFactory.getLogger(ValidatorService.class);
+	private final Logger log = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 	
 	private final static List<String> IGNORE_NAMES = new ArrayList<String>();
 	{	
@@ -64,6 +65,7 @@ public class ValidatorService {
 		IGNORE_NAMES.add("spacer");
 		IGNORE_NAMES.add("label");
 		IGNORE_NAMES.add("dashlet");
+		IGNORE_NAMES.add("stream");
 	}
 	
 	private static final String SUM_PATTERN = "sum\\(([^;^:]+;[^;^:]+(:[^:^;]+)?)\\)";
