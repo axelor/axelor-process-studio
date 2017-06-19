@@ -187,7 +187,7 @@ public class FilterService {
 
 		value = value.replace("$$", "_parent.");
 
-		return value;
+		return getTagValue(value,false);
 	}
 
 	private String getConditionExpr(String operator, String field, String value) {
@@ -455,6 +455,40 @@ public class FilterService {
 		}
 
 		return likeCondition;
+	}
+	
+	
+	public String getSqlFilters(List<Filter> filterList) {
+
+		String filters = null;
+		
+		if (filterList == null) {
+			return filters;
+		}
+
+		for (Filter filter : filterList) {
+
+			MetaField field = filter.getMetaField();
+
+			String relationship = field.getRelationship();
+			String condition = "";
+
+			if (relationship != null) {
+				condition = getRelationalCondition(filter, null);
+			} else {
+				condition = getSimpleCondition(filter, null);
+			}
+
+			if (filters == null) {
+				filters = condition;
+			} else {
+				String opt = filter.getLogicOp() == 0 ? " AND " : " OR ";
+				filters = filters + opt + condition;
+			}
+		}
+
+		return filters;
+
 	}
 
 }

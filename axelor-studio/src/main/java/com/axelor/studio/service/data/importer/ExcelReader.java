@@ -3,22 +3,21 @@ package com.axelor.studio.service.data.importer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Iterator;
 
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.util.NumberToTextConverter;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.hsqldb.navigator.RowIterator;
 
 import com.axelor.meta.MetaFiles;
 import com.axelor.meta.db.MetaFile;
 import com.google.common.base.Strings;
 
-public class DataReaderExcel implements DataReader {
+public class ExcelReader implements DataReader {
 	
 	private XSSFWorkbook book = null;
+	private DataFormatter formatter = null;
 	
 	@Override
 	public boolean initialize(MetaFile input){
@@ -35,6 +34,7 @@ public class DataReaderExcel implements DataReader {
 		try {
 			FileInputStream inSteam = new FileInputStream(inFile);
 			book = new XSSFWorkbook(inSteam);
+			formatter = new DataFormatter();
 		} catch (IOException e) {
 			e.printStackTrace();
 			return false;
@@ -60,7 +60,11 @@ public class DataReaderExcel implements DataReader {
 			return null;
 		}
 		
-		int headerSize = sheet.getRow(0).getPhysicalNumberOfCells();
+		XSSFRow header = sheet.getRow(0);
+		if (header == null) {
+			return null;
+		}
+		int headerSize = header.getPhysicalNumberOfCells();
 		String[] vals = new String[headerSize];
 		
 		for (int i=0; i<headerSize; i++) {
@@ -68,23 +72,28 @@ public class DataReaderExcel implements DataReader {
 			if (cell == null) {
 				continue;
 			}
-			switch(cell.getCellType()) {
-				case Cell.CELL_TYPE_STRING:
-					String valString =  cell.getStringCellValue();
-					if (!Strings.isNullOrEmpty(valString)) {
-						vals[i] = valString.trim();
-					}
-					break;
-				case Cell.CELL_TYPE_BOOLEAN:
-					Boolean valBoolean = cell.getBooleanCellValue();
-					if (valBoolean != null) {
-						vals[i] = valBoolean.toString().toLowerCase();
-					}
-					break;
-				case Cell.CELL_TYPE_NUMERIC:
-					vals[i] = NumberToTextConverter.toText(cell.getNumericCellValue());
-					break;
+			vals[i] = formatter.formatCellValue(cell);
+			if (Strings.isNullOrEmpty(vals[i])) {
+				vals[i] = null;
 			}
+			
+//			switch(cell.getCellType()) {
+//				case Cell.CELL_TYPE_STRING:
+//					String valString =  cell.getStringCellValue();
+//					if (!Strings.isNullOrEmpty(valString)) {
+//						vals[i] = valString.trim();
+//					}
+//					break;
+//				case Cell.CELL_TYPE_BOOLEAN:
+//					Boolean valBoolean = cell.getBooleanCellValue();
+//					if (valBoolean != null) {
+//						vals[i] = valBoolean.toString().toLowerCase();
+//					}
+//					break;
+//				case Cell.CELL_TYPE_NUMERIC:
+//					vals[i] = NumberToTextConverter.toText(cell.getNumericCellValue());
+//					break;
+//			}
 		}
 		
 		

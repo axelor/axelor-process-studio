@@ -49,10 +49,10 @@ import com.axelor.studio.service.data.validator.ValidatorService;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 
-public class ImportService {
+public class ImporterService {
 
 	private final static Logger log = LoggerFactory
-			.getLogger(ImportService.class);
+			.getLogger(ImporterService.class);
 	
 	private Map<String, Map<String, List<String>>> moduleMap;
 
@@ -80,19 +80,19 @@ public class ImportService {
 	private ActionBuilderRepository actionBuilderRepo;
 	
 	@Inject
-	private ImportModule importModule;
+	private ModuleImporter moduleImporter;
 	
 	@Inject
-	private ImportForm importForm;
+	private FormImporter formImporter;
 	
 	@Inject
-	private ImportMenu importMenu;
+	private MenuImporter menuImporter;
 	
 	@Inject
-	private ImportGrid importGrid;
+	private GridImporter gridImporter;
 	
 	@Inject
-	private ImportModel importModel;
+	private ModelImporter modelImporter;
 	
 	/**
 	 * Root method to access the service. It will call other methods required to
@@ -123,9 +123,9 @@ public class ImportService {
 				return logFile;
 			}
 			
-			importForm.clear();
+			formImporter.clear();
 			
-			importModule.createModules(reader, "Modules");
+			moduleImporter.createModules(reader, "Modules");
 
 			processSheets(reader);
 			
@@ -133,7 +133,7 @@ public class ImportService {
 			
 			generateGrid(modelMap);
 			
-			importMenu.importMenus(reader, "Menu");
+			menuImporter.importMenus(reader, "Menu");
 
 		} catch (IOException e) {
 			throw new AxelorException(e, 5);
@@ -208,7 +208,7 @@ public class ImportService {
 			return;
 		}
 		
-		importModel.importModel(this, row, rowNum, metaModule);
+		modelImporter.importModel(this, row, rowNum, metaModule);
 
 	}
 	
@@ -238,47 +238,54 @@ public class ImportService {
     }
     
     
-    @Transactional
-    public void generateGrid(Map<String, MetaModel> modelMap) throws AxelorException {
+    private void generateGrid(Map<String, MetaModel> clearedModels) throws AxelorException {
 		
-    	Map<String, List<ActionBuilder>> actionViewMap = importForm.getViewActionMap();
+    	Map<String, List<ActionBuilder>> actionViewMap = formImporter.getViewActionMap();
     	
 		for (String module : moduleMap.keySet()) {
 			
 			for (String modelName : moduleMap.get(module).keySet()) {
-	 			if (!modelMap.containsKey(modelName)) {
+	 			if (!clearedModels.containsKey(modelName)) {
 	 				continue;
 	 			}
-	 			MetaModel model = modelMap.get(modelName);
+	 			MetaModel model = clearedModels.get(modelName);
 				List<MetaField> fields = null;
 				if (gridViewMap.containsKey(module)) {
 					fields = gridViewMap.get(module).get(model);
 				}
 				
 				if (model.getMetaModule() != null || fields != null) {
-					ViewBuilder viewBuilder = importGrid.createGridView(getModule(module, null), model, fields);
+					if ((fields == null || fields.isEmpty()) && model.getMetaModule() != null) {
+						module = model.getMetaModule().getName();
+					}
+					ViewBuilder viewBuilder = gridImporter.createGridView(getModule(module, null), model, fields);
 					if (actionViewMap.containsKey(viewBuilder.getName())) {
-						
-						for (ActionBuilder builder : actionViewMap.get(viewBuilder.getName())) {
-							builder.addViewBuilderSetItem(viewBuilder);
-							builder.setMetaModel(viewBuilder.getMetaModel());
-							actionBuilderRepo.save(builder);
-						}
-						
-						actionViewMap.remove(viewBuilder.getName());
+						updateActionView(actionViewMap, viewBuilder);
 					}
 				}
 				else {
-					importGrid.clearGrid(module, modelName);
+					gridImporter.clearGrid(module, modelName);
 				}
 			}
 		}
 		
 		if (!actionViewMap.isEmpty()) {
 			throw new AxelorException(I18n.get("Views not found: %s"), 1,
-					importForm.getViewActionMap().keySet());
+					formImporter.getViewActionMap().keySet());
 		}
 
+	}
+    
+    @Transactional
+	public void updateActionView(Map<String, List<ActionBuilder>> actionViewMap, ViewBuilder viewBuilder) {
+		
+		for (ActionBuilder builder : actionViewMap.get(viewBuilder.getName())) {
+			builder.addViewBuilderSetItem(viewBuilder);
+			builder.setMetaModel(viewBuilder.getMetaModel());
+			actionBuilderRepo.save(builder);
+		}
+		
+		actionViewMap.remove(viewBuilder.getName());
 	}
     
 	private Map<String,	Set<String>> getModels() {
@@ -363,7 +370,7 @@ public class ImportService {
     
     public void addView(MetaModel model, String[] basic, String[] row, int rowNum, MetaField field) throws AxelorException {
     	
-    	importForm.importForm(model, basic, row, rowNum, field, replace);
+    	formImporter.importForm(model, basic, row, rowNum, field, replace);
     }
     
     public Integer getFieldSeq(Long modelId) {

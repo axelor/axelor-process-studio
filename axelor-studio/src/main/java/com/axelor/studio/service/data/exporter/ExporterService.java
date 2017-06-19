@@ -26,12 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.axelor.i18n.I18n;
-import com.axelor.meta.MetaFiles;
 import com.axelor.meta.db.MetaAction;
 import com.axelor.meta.db.MetaFile;
 import com.axelor.meta.db.MetaMenu;
@@ -40,16 +38,18 @@ import com.axelor.meta.db.repo.MetaModuleRepository;
 import com.axelor.meta.schema.views.AbstractWidget;
 import com.axelor.studio.service.ViewLoaderService;
 import com.axelor.studio.service.data.CommonService;
+import com.axelor.studio.service.data.TranslationService;
 import com.axelor.studio.service.data.importer.DataReader;
-import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 
-public class ExportService {
+public class ExporterService {
 	
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	private String menuPath = null;
+	
+	private String menuPathFR = null;
 	
 	private Map<String, String> processedMenus = new HashMap<String, String>();
 	
@@ -69,26 +69,26 @@ public class ExportService {
 	private CommonService common;
 	
 	@Inject
-	private MetaFiles metaFiles;
-	
-	@Inject
-	private ExportModel dataExportModel;
+	private ModelExporter modelExporter;
 	
 	@Inject
 	private MetaModuleRepository metaModuleRepo;
 	
 	@Inject
-	private ExportMenu exportMenu;
+	private MenuExporter menuExporter;
 	
 	@Inject
-	private ExportAction exportAction;
+	private ActionExporter actionExporter;
+	
+	@Inject
+	private TranslationService translationService;
 	
 	public MetaFile export(MetaFile oldFile, DataWriter writer, DataReader reader) {
 		
 		setExportModules();
 		
 		this.writer = writer;
-		this.writer.initialize(metaFiles);
+		this.writer.initialize();
 		
 		if  (oldFile != null) {
 			if (reader.initialize(oldFile)) {
@@ -98,9 +98,9 @@ public class ExportService {
 		
 		addModules(reader);
 
-		exportMenu.export(writer, exportModules);
+		menuExporter.export(writer, exportModules);
 		
-		exportAction.export(writer);
+		actionExporter.export(writer);
 		
 		processMenu();
 		
@@ -173,6 +173,7 @@ public class ExportService {
 		}
 		
 		values[CommonService.MENU] = menuPath;
+		values[CommonService.MENU_FR] = menuPathFR;
 		
 		values = addHelp(null, values);
 		
@@ -184,7 +185,7 @@ public class ExportService {
 	
 	private void processMenu() {
 		
-		List<MetaMenu> menus = 	exportMenu.getMenus(exportModules);
+		List<MetaMenu> menus = 	menuExporter.getMenus(exportModules);
 		
 		for (MetaMenu menu : menus) {
 			String name = menu.getName();
@@ -205,7 +206,7 @@ public class ExportService {
 			
 			MetaAction action = menu.getAction();;
 			if (action != null && action.getType().equals("action-view")) {
-				dataExportModel.export(this, action);
+				modelExporter.export(this, action);
 			}
 			
 			processedMenus.put(name, menu.getTitle());
@@ -221,7 +222,13 @@ public class ExportService {
 				docKey = getDocKey(vals);
 			}
 			if (docMap.containsKey(docKey)) {
-				return (String[]) ArrayUtils.addAll(vals, docMap.get(docKey));
+				String[] help = docMap.get(docKey);
+				if (help[0] != null) {
+					vals[CommonService.HELP] = help[0];
+				}
+				if (help[1] != null) {
+					vals[CommonService.HELP_FR] = help[1];
+				}
 			}
 		}
 		
@@ -261,8 +268,9 @@ public class ExportService {
 		return name;
 	}
 
-	protected void setMenuPath(String menuPath) {
+	protected void setMenuPath(String menuPath, String menuPathFR) {
 		this.menuPath = menuPath;
+		this.menuPathFR = menuPathFR;
 	}
 	
 	private void addGeneralRow(String key, String[] values) {
@@ -275,7 +283,9 @@ public class ExportService {
 		
 		if (menuPath != null) {
 			vals[CommonService.MENU] = menuPath;
+			vals[CommonService.MENU_FR] = menuPathFR;
 			menuPath = null;
+			menuPathFR = null;
 		}	
 		
 		vals = addHelp(null, vals);
@@ -294,7 +304,23 @@ public class ExportService {
 		
 		Collections.reverse(menus);
 		
-		menuPath = Joiner.on("/").join(menus);
+		boolean first = true;
+		for (String mn : menus) {
+			String mnFR = translationService.getTranslation(mn, "fr");
+			if (Strings.isNullOrEmpty(mnFR)) {
+				mnFR = mn;
+			}
+			if (first) {
+				menuPath = mn;
+				menuPathFR = mnFR;
+			}
+			else {
+				menuPath += "/" + mn;
+				menuPathFR += "/" + mnFR;
+			}
+			first = false;
+		}
+		
 	}
 	
 	private void addParentMenus(List<String> menus, MetaMenu metaMenu) {
@@ -323,17 +349,10 @@ public class ExportService {
 			log.debug("Loading key: {}", key);
 			String lastKey = key;
 			
-			for (int count = 0; count < reader.getTotalLines(key); count ++) {
+			for (int count = 1; count < reader.getTotalLines(key); count ++) {
 				
 				String[] row = reader.read(key, count);
-				if (row == null) {
-					continue;
-				}
-				
-				if (count == 0) {
-					if (row.length > CommonService.HELP) {
-						docMap.put(lastKey, Arrays.copyOfRange(row, CommonService.HELP, row.length));
-					}
+				if (row == null || row.length < CommonService.HEADERS.length) {
 					continue;
 				}
 				
@@ -359,8 +378,8 @@ public class ExportService {
 				}
 				
 				lastKey = model + "," + view + "," + getFieldType(type) + "," +  name;
-				if (row.length > CommonService.HELP) {
-					docMap.put(lastKey, Arrays.copyOfRange(row, CommonService.HELP, row.length));
+				if (row[CommonService.HELP] != null || row[CommonService.HELP_FR] != null) {
+					docMap.put(lastKey, new String[] {row[CommonService.HELP], row[CommonService.HELP_FR]});
 				}
 			}
 		}

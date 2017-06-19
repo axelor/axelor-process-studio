@@ -3,10 +3,11 @@ package com.axelor.studio.service.data.importer;
 import com.axelor.meta.db.MetaModule;
 import com.axelor.meta.db.repo.MetaModuleRepository;
 import com.axelor.studio.service.ConfigurationService;
+import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.persist.Transactional;
 
-public class ImportModule {
+public class ModuleImporter {
 	
 	@Inject
 	private ConfigurationService configService;
@@ -35,7 +36,7 @@ public class ImportModule {
 			}
 			
 			String name = row[0];
-			if (name == null) {
+			if (Strings.isNullOrEmpty(name)) {
 				continue;
 			}
 			if (configService.getNonCustomizedModules().contains(name)) {

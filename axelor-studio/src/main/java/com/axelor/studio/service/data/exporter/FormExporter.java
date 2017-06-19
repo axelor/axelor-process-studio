@@ -49,16 +49,18 @@ import com.axelor.meta.schema.views.PanelEditor;
 import com.axelor.meta.schema.views.PanelField;
 import com.axelor.meta.schema.views.PanelInclude;
 import com.axelor.meta.schema.views.PanelRelated;
+import com.axelor.meta.schema.views.PanelStack;
 import com.axelor.meta.schema.views.PanelTabs;
 import com.axelor.meta.schema.views.Selection.Option;
 import com.axelor.meta.schema.views.Spacer;
+import com.axelor.studio.service.ViewLoaderService;
 import com.axelor.studio.service.data.CommonService;
 import com.axelor.studio.service.data.TranslationService;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 
-public class ExportForm {
+public class FormExporter {
 	
 	private final Logger log = LoggerFactory.getLogger(getClass());
 	
@@ -72,13 +74,13 @@ public class ExportForm {
 	private TranslationService translationService;
 	
 	@Inject
-	private ExportDashboard exportDashboard;
+	private DashboardExporter dashboardExporter;
 	
-	private ExportService exportService;
+	private ExporterService exporterService;
 	
-	public List<String[]> export(ExportService exportService, MetaView formView, List<String> grid) throws JAXBException {
+	public List<String[]> export(ExporterService exporterService, MetaView formView, List<String> grid) throws JAXBException {
 		
-		this.exportService = exportService;
+		this.exporterService = exporterService;
 		o2mViews = new ArrayList<String[]>();
 		/**
 		 * 1. Is panelTab.
@@ -108,8 +110,6 @@ public class ExportForm {
 		
 		log.debug("Processing form: {}", view);
 		
-		exportService.addViewProcessed(form.getName());
-		
 		if (form.getOnNew() != null) {
 			addEvent(module, model, view, "onnew", form.getOnNew());
 		}
@@ -135,6 +135,8 @@ public class ExportForm {
 			
 		panelLevel = processItems(form.getItems(), module, model, view, mapper, extra);
 		
+		exporterService.addViewProcessed(form.getName());
+		
 		return panelLevel;
 	}
 	
@@ -148,7 +150,7 @@ public class ExportForm {
 	    values[CommonService.TYPE] = type;
 	    values[CommonService.FORMULA] = formula;
 	    
-	    exportService.writeRow(values, newForm);
+	    exporterService.writeRow(values, newForm);
 	    
 	    newForm = false;
 	}
@@ -169,9 +171,9 @@ public class ExportForm {
 		    values[CommonService.TITLE] = title;
 		    values[CommonService.TITLE_FR] = translationService.getTranslation(title, "fr");
 		    values[CommonService.TYPE] = "menubar";
-		    values[CommonService.IF_MODULE] = ExportService.getModuleToCheck(menu, (String) extra[3]);
+		    values[CommonService.IF_MODULE] = ExporterService.getModuleToCheck(menu, (String) extra[3]);
 		
-		    exportService.writeRow(values, newForm);
+		    exporterService.writeRow(values, newForm);
 			newForm = false;
 			
 			processItems(menu.getItems(), module, model, view, mapper, extra);
@@ -188,7 +190,7 @@ public class ExportForm {
 		for (AbstractWidget item : items) {
 			
 			if (item.getModuleToCheck() != null 
-					&& !exportService.isExportModule(item.getModuleToCheck())) {
+					&& !exporterService.isExportModule(item.getModuleToCheck())) {
 				continue;
 			}
 
@@ -199,7 +201,7 @@ public class ExportForm {
 			
 			try {
 				
-				Method method = ExportForm.class.getDeclaredMethod(methodName, 
+				Method method = FormExporter.class.getDeclaredMethod(methodName, 
 							new Class[] {klass, 
 										 String.class, 
 										 String.class,
@@ -232,6 +234,10 @@ public class ExportForm {
 			panelType = "paneltab";
 		}
 		
+		if (panel.getSidebar() != null && panel.getSidebar()) {
+			panelType = "panelside";
+		}
+		
 		String[] values = new String[CommonService.HEADERS.length];
 		values[CommonService.MODULE] = module;
 		values[CommonService.MODEL] = model; 
@@ -241,7 +247,7 @@ public class ExportForm {
 		values[CommonService.TITLE_FR] =	translationService.getTranslation(panel.getTitle(), "fr");
 		values[CommonService.TYPE] =	panelType; 
 		values[CommonService.IF_CONFIG] = panel.getConditionToCheck();
-		extra[3] = ExportService.getModuleToCheck(panel, (String)extra[3]);
+		extra[3] = ExporterService.getModuleToCheck(panel, (String)extra[3]);
 		values[CommonService.IF_MODULE] = (String) extra[3];
 		
 		if (panel.getReadonly() != null && panel.getReadonly()) {
@@ -268,7 +274,7 @@ public class ExportForm {
 		panelLevel = getPanelLevel(panelLevel);
 		values[CommonService.PANEL_LEVEL] = panelLevel;
 		
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		newForm = false;
 		
@@ -278,6 +284,11 @@ public class ExportForm {
 		processItems(panel.getItems(), module, model, view, mapper, extra);
 		
 		return panelLevel;
+	}
+	
+	@SuppressWarnings("unused")
+	private String processPanelStack(PanelStack panel, String module, String model, String view, Mapper mapper, Object[] extra) {
+		return processItems(panel.getItems(), module, model, view, mapper, extra);
 	}
 	
 	private String getPanelLevel(String panelLevel) {
@@ -317,7 +328,7 @@ public class ExportForm {
 		values[CommonService.VIEW] =	view; 
 		values[CommonService.TYPE] = "panelbook";
 		values[CommonService.IF_CONFIG] = panelTabs.getConditionToCheck();
-		extra[3] = ExportService.getModuleToCheck(panelTabs, (String)extra[3]);
+		extra[3] = ExporterService.getModuleToCheck(panelTabs, (String)extra[3]);
 		values[CommonService.IF_MODULE] = (String) extra[3];
 		
 		if (panelTabs.getReadonly() != null && panelTabs.getReadonly()) {
@@ -348,7 +359,7 @@ public class ExportForm {
 		extra[2] = panelLevel + ".-1";
 
 		log.debug("Exporting panel book view: {}", view);
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		processItems(panelTabs.getItems(), 
 				module,
@@ -374,7 +385,7 @@ public class ExportForm {
 		values[CommonService.NAME] =	name; 
 		values[CommonService.TITLE] = field.getTitle();
 		values[CommonService.TITLE_FR] = translationService.getTranslation(field.getTitle(), "fr");
-		values[CommonService.IF_MODULE] = ExportService.getModuleToCheck(field, (String) extra[3]);
+		values[CommonService.IF_MODULE] = ExporterService.getModuleToCheck(field, (String) extra[3]);
 		
 		if (!name.contains(".")) {
 			values[CommonService.TYPE] = field.getServerType();
@@ -426,7 +437,7 @@ public class ExportForm {
 			values[CommonService.GRID] = grid.get(0);
 		}
 		
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		newForm = false;
 		
@@ -591,8 +602,8 @@ public class ExportForm {
 		
 		if  (view != null && panelView != null) {
 			String name = panelView.getName();
-			if (!exportService.isViewProcessed(name)) {
-				extra[3] = ExportService.getModuleToCheck(panelInclude, (String)extra[3]);
+			if (!exporterService.isViewProcessed(name)) {
+				extra[3] = ExporterService.getModuleToCheck(panelInclude, (String)extra[3]);
 				return processForm((FormView) panelView, 
 						module,
 						model,
@@ -636,7 +647,7 @@ public class ExportForm {
 		values[CommonService.HIDDEN] = button.getHideIf();
 		values[CommonService.SHOW_IF] = button.getShowIf();
 		values[CommonService.IF_CONFIG] = button.getConditionToCheck();
-		values[CommonService.IF_MODULE] = ExportService.getModuleToCheck(button, (String)extra[3]);
+		values[CommonService.IF_MODULE] = ExporterService.getModuleToCheck(button, (String)extra[3]);
 		
 		if (toolbar) {
 			values[CommonService.TYPE] = "button(toolbar)";
@@ -646,7 +657,7 @@ public class ExportForm {
 			values[CommonService.COLSPAN] = button.getColSpan().toString();
 		}
 		
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		newForm = false;
 		
@@ -668,7 +679,7 @@ public class ExportForm {
 		values[CommonService.HIDDEN] = panelRelated.getHideIf();
 		values[CommonService.SHOW_IF] = panelRelated.getShowIf();
 		values[CommonService.IF_CONFIG] = panelRelated.getConditionToCheck();
-		values[CommonService.IF_MODULE] = ExportService.getModuleToCheck(panelRelated, (String)extra[3]);
+		values[CommonService.IF_MODULE] = ExporterService.getModuleToCheck(panelRelated, (String)extra[3]);
 		
 		String target = panelRelated.getTarget();
 		Property property = mapper.getProperty(values[CommonService.NAME]);
@@ -696,9 +707,17 @@ public class ExportForm {
 		if (target != null) {
 			view = view.split("\\(")[0];
 			String parentView = view + "(" + values[CommonService.TITLE] + ")"; 
+			String titleFR = translationService.getTranslation(values[CommonService.TITLE],"fr");
+			if (Strings.isNullOrEmpty(titleFR)) {
+				values[CommonService.TITLE] = values[CommonService.TITLE];
+			}
+			String parentViewFR = view + "(" + values[CommonService.TITLE]  + ")"; 
 			String form = panelRelated.getFormView();
-			if (form != null && !exportService.isViewProcessed(form) && !form.equals(view)) {
-				o2mViews.add(new String[]{target, form, panelRelated.getGridView(), parentView});
+			if (form == null) {
+				form = ViewLoaderService.getDefaultViewName(target, "form");
+			}
+			if (!exporterService.isViewProcessed(form) && !form.equals(view)) {
+				o2mViews.add(new String[]{target, form, panelRelated.getGridView(), parentView, parentViewFR});
 			}
 			String[] targets = target.split("\\.");
 			values[CommonService.TYPE] = values[CommonService.TYPE] + "(" + targets[targets.length - 1] + ")";
@@ -720,7 +739,7 @@ public class ExportForm {
 		values[CommonService.PANEL_LEVEL] = panelLevel;
 		extra[2] = panelLevel;
 		
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		newForm = false;
 		
@@ -742,13 +761,13 @@ public class ExportForm {
 		values[CommonService.TYPE] =	"label"; 
 		values[CommonService.IF_CONFIG] = label.getConditionToCheck();
 		values[CommonService.HIDDEN] = label.getHideIf();
-		values[CommonService.IF_MODULE] = ExportService.getModuleToCheck(label, (String)extra[3]);
+		values[CommonService.IF_MODULE] = ExporterService.getModuleToCheck(label, (String)extra[3]);
 		
 		if (label.getColSpan() != null) {
 			values[CommonService.COLSPAN] = label.getColSpan().toString();
 		}
 		
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		newForm = false;
 		
@@ -758,10 +777,10 @@ public class ExportForm {
 	@SuppressWarnings("unused")
 	private String processDashlet(Dashlet dashlet, String module, String model, String view, Mapper mapper, Object[] extra) {
 		
-		String[] values = exportDashboard.processDashlet(dashlet, module, model, view, mapper, (String)extra[3]);
+		String[] values = dashboardExporter.processDashlet(dashlet, module, model, view, mapper, (String)extra[3]);
 		
 		if (values != null) {
-			exportService.writeRow(values, newForm );
+			exporterService.writeRow(values, newForm );
 			newForm = false;
 		}
 		
@@ -784,12 +803,12 @@ public class ExportForm {
 		values[CommonService.HIDDEN] = item.getHideIf();
 		values[CommonService.SHOW_IF] = item.getShowIf();
 		values[CommonService.IF_CONFIG] = item.getConditionToCheck();
-		values[CommonService.IF_MODULE] = ExportService.getModuleToCheck(item, (String)extra[3]);
+		values[CommonService.IF_MODULE] = ExporterService.getModuleToCheck(item, (String)extra[3]);
 		if (item.getHidden() != null && item.getHidden()) {
 			values[CommonService.HIDDEN] = "x";
 		}
 		
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		newForm = false;
 		
@@ -805,14 +824,14 @@ public class ExportForm {
 		values[CommonService.VIEW] =	view; 
 		values[CommonService.TYPE] = "spacer";
 		values[CommonService.IF_CONFIG] = spacer.getConditionToCheck();
-		values[CommonService.IF_MODULE] = ExportService.getModuleToCheck(spacer, (String)extra[3]);
+		values[CommonService.IF_MODULE] = ExporterService.getModuleToCheck(spacer, (String)extra[3]);
 		
 		Integer colSpan =  spacer.getColSpan();
 		if (colSpan != null) {
 			values[CommonService.COLSPAN] = colSpan.toString();
 		}
 		
-		exportService.writeRow(values, newForm );
+		exporterService.writeRow(values, newForm );
 		
 		newForm = false;
 		
