@@ -17,7 +17,13 @@
  */
 package com.axelor.apps.tool;
 
+import com.axelor.db.Model;
+import com.google.common.base.Joiner;
+
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public final class StringTool {
 	
@@ -219,5 +225,18 @@ public final class StringTool {
 		result.replace(0, 1, result.substring(0, 1).toUpperCase());
 		return result.toString();
 	}
-	
+
+
+	/**
+	 * Fonction permettant de recupérer une liste d'ID depuis une collection de n'importe quel objet
+	 * @param collection
+	 * @return
+	 */
+	public static String getIdFromCollection(Collection<? extends Model> collection) {
+		List<Long> idList = new ArrayList<>();
+		for (Model item : collection) {
+			idList.add(item.getId());
+		}
+		return Joiner.on(",").join(idList);
+	}
 }
