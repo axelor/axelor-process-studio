@@ -281,12 +281,12 @@ public class ModuleRecorderService {
 			throws AxelorException {
 
 		if (param == null) {
-			throw new AxelorException(I18n.get("Required parameter is empty: ") + name, 1);
+			throw new AxelorException(I18n.get("Required parameter is empty:") + " " + name, 1);
 		}
 
 		if (isFile) {
 			if (!(new File(param)).exists()) {
-				throw new AxelorException(I18n.get("Path not exist: ") + param, 1);
+				throw new AxelorException(I18n.get("Path not exist:") + " " + param, 1);
 			}
 		}
 

@@ -168,7 +168,7 @@ public class Period {
 	
 	@Override
 	public String toString() {
-		return this.from + " - " + this.to + "("+I18n.get(IExceptionMessage.PERIOD_1)+" :" + this.days360 + ")";
+		return this.from + " - " + this.to + "(\n"+I18n.get(IExceptionMessage.PERIOD_1)+" :" + this.days360 + ")";
 	}
 	
 }

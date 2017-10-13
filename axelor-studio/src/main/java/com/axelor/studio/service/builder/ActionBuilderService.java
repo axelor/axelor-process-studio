@@ -855,12 +855,12 @@ public class ActionBuilderService {
 		
 		errors = "";
 		if(condition){
-			errors += String.format(I18n.get("Invalid condition action builder: %s"
-					+ " , condition %s"), builder , expr);
+			errors += String.format(I18n.get("Invalid condition action builder: %s")
+					+ " " + I18n.get(", condition %s"), builder , expr);
 		}
 		else{
-			errors += String.format(I18n.get("Invalid expression action builder: %s"
-				+ " , expression %s"), builder ,  expr);
+			errors += String.format(I18n.get("Invalid expression action builder: %s")
+				+ " " + I18n.get(", expression %s"), builder ,  expr);
 		}
 	}
 }
