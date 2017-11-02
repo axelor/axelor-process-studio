@@ -95,8 +95,8 @@ public class StudioTemplateService {
 
 		if (!dependencyImported(template)) {
 			setTemplateImported(template, false);
-			return I18n.get("Dependency not imported. "
-					+ "Please import all dependency templates first.");
+			return I18n.get("Dependency not imported.") + " "
+					+ I18n.get("Please import all dependency templates first.");
 		}
 
 		MetaFile templateFile = template.getMetaFile();
