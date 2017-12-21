@@ -22,7 +22,6 @@
  	  <option value='doubtfulCustomer'>Doubtful customer</option>
    	  <option value='reimbursement'>Reimbursement</option>
    	  <option value='directDebit'>Direct debit</option>
-   	  <option value="interbankPaymentOrder">Interbank payment order</option>
    	  <option value="crm">CRM</option>
 	</selection>
 
