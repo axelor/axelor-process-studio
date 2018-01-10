@@ -1,7 +1,7 @@
 /**
  * Axelor Business Solutions
  *
- * Copyright (C) 2017 Axelor (<http://axelor.com>).
+ * Copyright (C) 2018 Axelor (<http://axelor.com>).
  *
  * This program is free software: you can redistribute it and/or  modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -17,7 +17,13 @@
  */
 package com.axelor.apps.tool;
 
+import com.axelor.db.Model;
+import com.google.common.base.Joiner;
+
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public final class StringTool {
 	
@@ -48,11 +54,12 @@ public final class StringTool {
 		return string.replaceFirst("\\w", Character.toString(string.toUpperCase().charAt(0)));
 		
 	}
-	
+
 	/**
 	 * Complete string with fixed length.
-	 * 
-	 * @param string
+	 * @param s
+	 * @param fillChar
+	 * @param size
 	 * @return
 	 */
 	public static String fillStringRight(String s, char fillChar, int size){
@@ -65,11 +72,12 @@ public final class StringTool {
 		return string;
 		
 	}
-	
+
 	/**
 	 * Complete string with fixed length.
-	 * 
-	 * @param string
+	 * @param s
+	 * @param fillChar
+	 * @param size
 	 * @return
 	 */
 	public static String fillStringLeft(String s, char fillChar, int size){
@@ -200,12 +208,11 @@ public final class StringTool {
 		
 		return sb.toString();
 	}
-	
-	
+
+
 	/**
 	 * Fonction permettant de mettre la première lettre d'une chaine de caractère en majuscule
-	 * @param value
-	 * 			Une chaine de caractère
+	 * @param s
 	 * @return
 	 */
 	public static String capitalizeFirstLetter(String s) {
@@ -219,5 +226,25 @@ public final class StringTool {
 		result.replace(0, 1, result.substring(0, 1).toUpperCase());
 		return result.toString();
 	}
-	
+
+
+	/**
+	 * Retrieve an ID list from a collection of any object
+	 * if the collection is empty, this method will return "0"
+	 * @param collection
+	 * @return
+	 */
+	public static String getIdFromCollection(Collection<? extends Model> collection) {
+		List<Long> idList = new ArrayList<>();
+		String idString;
+		if (collection.isEmpty()) {
+			idString = "0";
+		} else {
+			for (Model item : collection) {
+				idList.add(item.getId());
+			}
+			idString = Joiner.on(",").join(idList);
+		}
+		return idString;
+	}
 }
