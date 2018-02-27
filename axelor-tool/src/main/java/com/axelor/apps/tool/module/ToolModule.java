@@ -15,27 +15,17 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.axelor.apps.message.service;
+package com.axelor.apps.tool.module;
 
-import com.axelor.apps.message.db.MailAccount;
-import com.axelor.exception.AxelorException;
+import com.axelor.app.AxelorModule;
+import com.axelor.apps.tool.service.CipherService;
+import com.axelor.apps.tool.service.CipherServiceImpl;
 
-public interface MailAccountService {
+public class ToolModule extends AxelorModule {
 
-	public boolean checkDefaultMailAccount(MailAccount mailAccount);
-	
-	public MailAccount getDefaultMailAccount();
-	
-	public void checkMailAccountConfiguration(MailAccount mailAccount) throws AxelorException, Exception;
-	
-	public String getSmtpSecurity(MailAccount mailAccount);
-	
-	public String getProtocol(MailAccount mailAccount);
-	
-	public String getSignature(MailAccount mailAccount);
-	
-	public String getEncryptPassword(String password);
-	
-	public String getDecryptPassword(String password);
-	
+	@Override
+	protected void configure() {
+		bind(CipherService.class).to(CipherServiceImpl.class);
+	}
+
 }
