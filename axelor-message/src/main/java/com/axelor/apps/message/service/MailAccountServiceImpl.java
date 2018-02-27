@@ -27,6 +27,7 @@ import javax.mail.Transport;
 import com.axelor.apps.message.db.MailAccount;
 import com.axelor.apps.message.db.repo.MailAccountRepository;
 import com.axelor.apps.message.exception.IExceptionMessage;
+import com.axelor.apps.tool.service.CipherService;
 import com.axelor.exception.AxelorException;
 import com.axelor.exception.db.IException;
 import com.axelor.i18n.I18n;
@@ -41,6 +42,9 @@ public class MailAccountServiceImpl implements MailAccountService {
 	
 	@Inject
 	protected MailAccountRepository mailAccountRepo;
+	
+	@Inject
+	private CipherService cipherService;
 		
 	@Override
 	public boolean checkDefaultMailAccount(MailAccount mailAccount) {
@@ -65,8 +69,8 @@ public class MailAccountServiceImpl implements MailAccountService {
 	public void checkMailAccountConfiguration ( MailAccount mailAccount ) throws AxelorException, Exception {
 		
 		String port = mailAccount.getPort() <= 0 ? null : mailAccount.getPort().toString();
-		
-		SmtpAccount smtpAccount = new SmtpAccount( mailAccount.getHost(), port, mailAccount.getLogin(), mailAccount.getPassword(), getSmtpSecurity( mailAccount ) );
+
+		SmtpAccount smtpAccount = new SmtpAccount( mailAccount.getHost(), port, mailAccount.getLogin(), getDecryptPassword(mailAccount.getPassword()), getSmtpSecurity( mailAccount ) );
 		smtpAccount.setConnectionTimeout( CHECK_CONF_TIMEOUT );
 		
 		Session session = smtpAccount.getSession();
@@ -106,5 +110,17 @@ public class MailAccountServiceImpl implements MailAccountService {
 		if ( mailAccount != null && mailAccount.getSignature() != null ) { return "\n "+mailAccount.getSignature();	}		
 		return "";
 		
+	}
+
+	@Override
+	public String getEncryptPassword(String password) {
+		
+		return cipherService.encrypt(password);
+	}
+
+	@Override
+	public String getDecryptPassword(String password) {
+		
+		return cipherService.decrypt(password);
 	}
 }
