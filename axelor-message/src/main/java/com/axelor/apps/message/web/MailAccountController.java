@@ -32,7 +32,6 @@ public class MailAccountController {
 	MailAccountService mailAccountService;
 	
 	public void validateSmtpAccount(ActionRequest request,ActionResponse response){
-		
 		MailAccount account = request.getContext().asType(MailAccount.class);
 		
 		try {
@@ -53,10 +52,17 @@ public class MailAccountController {
 	
 	public void checkDefaultMailAccount(ActionRequest request, ActionResponse response){
 		MailAccount account = request.getContext().asType(MailAccount.class);
+		
 		if(!mailAccountService.checkDefaultMailAccount(account)){
 			response.setError(I18n.get(IExceptionMessage.MAIL_ACCOUNT_5));
 			response.setValue("isDefault", false);
 		}
+	}
+	
+	public void validate(ActionRequest request, ActionResponse response) {
+		
+		if (request.getContext().get("newPassword") != null)
+			response.setValue("password", mailAccountService.getEncryptPassword(request.getContext().get("newPassword").toString()));
 	}
 
 }
