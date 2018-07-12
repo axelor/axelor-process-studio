@@ -48,7 +48,6 @@ public interface IException {
 	public static final String DOUBTFUL_CUSTOMER = "doubtfulCustomer";
 	public static final String REIMBURSEMENT = "reimbursement";
 	public static final String DIRECT_DEBIT = "directDebit";
-	public static final String INTERBANK_PAYMENT_ORDER = "interbankPaymentOrder";
 	public static final String ACCOUNT_CUSTOMER = "accountCustomer";
 	public static final String MOVE_LINE_EXPORT_ORIGIN = "moveLineExport";
 	public static final String IRRECOVERABLE = "irrecoverable";
